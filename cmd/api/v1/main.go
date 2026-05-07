@@ -8,6 +8,7 @@ import (
 	"github.com/Lapnes/pos-kopitiam/internal/dto"
 	"github.com/Lapnes/pos-kopitiam/internal/models"
 	"github.com/Lapnes/pos-kopitiam/internal/service"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -24,6 +25,22 @@ func main() {
 	r := gin.Default()
 
 	// ======================
+	// CORS — izinkan semua origin (untuk dev)
+	// ======================
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: false,
+	}))
+
+	// ======================
+	// STATIC FILES — serve folder /static
+	// ======================
+	r.Static("/static", "./static")
+
+	// ======================
 	// HEALTH CHECK
 	// ======================
 	r.GET("/health", func(c *gin.Context) {
@@ -38,8 +55,9 @@ func main() {
 	// ======================
 	r.POST("/api/v1/orders", createOrderHandler(db))
 	r.GET("/api/v1/orders", getAllOrdersHandler(db))
+	r.GET("/api/v1/orders/report", getOrderReportHandler(db)) // harus sebelum :id
 	r.GET("/api/v1/orders/:id", getOrderByIDHandler(db))
-	r.GET("/api/v1/orders/report", getOrderReportHandler(db))
+	r.DELETE("/api/v1/orders/:id", deleteOrderHandler(db))
 
 	// ======================
 	// MASTER DATA
@@ -50,6 +68,7 @@ func main() {
 
 	port := config.GetEnv("PORT", "3400")
 	log.Printf("🚀 Server running on http://localhost:%s", port)
+	log.Printf("🌐 Kasir Web: http://localhost:%s/static/pos-kopitiam-kasir.html", port)
 	r.Run(":" + port)
 }
 
@@ -97,6 +116,38 @@ func createOrderHandler(db *gorm.DB) gin.HandlerFunc {
 		c.JSON(http.StatusCreated, gin.H{
 			"status":   "success",
 			"order_id": order.OrderID,
+		})
+	}
+}
+
+func deleteOrderHandler(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		orderID := c.Param("id")
+
+		// Cek order ada
+		var order models.Order
+		if err := db.First(&order, "order_id = ?", orderID).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+			return
+		}
+
+		// Hapus order_details dulu (FK constraint), lalu order
+		if err := db.Transaction(func(tx *gorm.DB) error {
+			if err := tx.Where("order_id = ?", orderID).Delete(&models.OrderDetail{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("order_id = ?", orderID).Delete(&models.Order{}).Error; err != nil {
+				return err
+			}
+			return nil
+		}); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "success",
+			"message": "Order deleted",
 		})
 	}
 }

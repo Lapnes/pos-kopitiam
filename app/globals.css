@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* ── Base backgrounds ── */
+  --bg:        #f0ebe0;
+  --bg2:       #e8e1d3;
+
+  /* ── Surfaces / card ── */
+  --surface:   #f7f3ea;
+  --surface2:  #ede8dc;
+  --surface3:  #e4ddd0;
+
+  /* ── Borders ── */
+  --border:       rgba(120,140,100,0.18);
+  --border-med:   rgba(100,120,80,0.30);
+  --border-dark:  rgba(80,100,60,0.50);
+
+  /* ── Sage green palette (warna utama) ── */
+  --sage:         #5a7a5a;
+  --sage-dark:    #3d5c3d;
+  --sage-mid:     #6e9470;
+  --sage-light:   #8fb091;
+  --sage-pale:    rgba(90,122,90,0.12);
+  --sage-glow:    rgba(90,122,90,0.25);
+
+  /* ── Brown alias (untuk backward compat) ── */
+  --brown:        #5a7a5a;
+  --brown-mid:    #6e9470;
+  --brown-light:  #8fb091;
+
+  /* ── Accent hangat ── */
+  --caramel:      #8a6e3a;
+  --caramel-glow: #b08d52;
+  --caramel-pale: rgba(138,110,58,0.12);
+
+  /* ── Text ── */
+  --text:       #2a2f1e;
+  --text-2:     #3d5c3d;
+  --text-3:     #5a7a5a;
+  --text-4:     #7a9a7a;
+  --text-5:     #9ab89a;
+
+  /* ── Status ── */
+  --success:    #2d7a4a;
+  --success-bg: rgba(45,122,74,0.1);
+  --danger:     #b03030;
+  --danger-bg:  rgba(176,48,48,0.1);
+  --warning:    #a06a10;
+  --warning-bg: rgba(160,106,16,0.1);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; overflow: hidden; -webkit-font-smoothing: antialiased; }
+body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; }
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-med); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--sage-light); }
+
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7' viewBox='0 0 11 7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%235a7a5a' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px !important;
+}
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
+input { outline: none; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideRight {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.94) translateY(6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.anim-fade-up  { animation: fadeUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.anim-fade-in  { animation: fadeIn 0.25s ease both; }
+.anim-slide-r  { animation: slideRight 0.25s ease both; }
+.anim-pop-in   { animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.anim-toast-in { animation: toastIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg2) 25%, var(--surface3) 50%, var(--bg2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite;
+  border-radius: 8px;
+}

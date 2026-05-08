@@ -1,63 +1,180 @@
 package service
 
 import (
+	"errors"
 	"fmt"
+	"time"
 
+	"github.com/Lapnes/pos-kopitiam/internal/dto"
 	"github.com/Lapnes/pos-kopitiam/internal/models"
+	"github.com/Lapnes/pos-kopitiam/internal/repository"
+	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
-func CreateOrder(db *gorm.DB, employeeID *uint64, items []struct {
-	MenuID uint64
-	Qty    int
-}) (*models.Order, error) {
+type OrderService interface {
+	CreateOrder(req dto.CreateOrderRequest, userID string, branchID string) (*models.Order, error)
+	GetOrder(id string) (*models.Order, error)
+	ConfirmOrder(orderID string) (*models.Order, error)
+}
 
-	var createdOrder models.Order
+type orderService struct {
+	db            *gorm.DB
+	orderRepo     repository.OrderRepository
+	inventoryRepo repository.InventoryRepository
+	redisClient   *redis.Client
+}
 
-	err := db.Transaction(func(tx *gorm.DB) error {
+func NewOrderService(db *gorm.DB, orderRepo repository.OrderRepository, inventoryRepo repository.InventoryRepository, redisClient *redis.Client) OrderService {
+	return &orderService{
+		db:            db,
+		orderRepo:     orderRepo,
+		inventoryRepo: inventoryRepo,
+		redisClient:   redisClient,
+	}
+}
 
-		createdOrder = models.Order{
-			EmployeeID: employeeID,
+func (s *orderService) CreateOrder(req dto.CreateOrderRequest, userID string, branchID string) (*models.Order, error) {
+	// 1. Validate items and stock (Simplified for now)
+	if len(req.Items) == 0 {
+		return nil, errors.New("order must have at least one item")
+	}
+
+	// Generate Order Number ORD-YYYYMMDD-XXXX
+	orderNumber := fmt.Sprintf("ORD-%s-%d", time.Now().Format("20060102"), time.Now().Unix()%10000)
+
+	branchUUID, _ := uuid.Parse(branchID)
+	userUUID, _ := uuid.Parse(userID)
+	var tableUUID *uuid.UUID
+	if req.TableID != "" {
+		id, _ := uuid.Parse(req.TableID)
+		tableUUID = &id
+	}
+
+	var subtotal float64
+	var orderDetails []models.OrderDetail
+	for _, item := range req.Items {
+		itemUUID, _ := uuid.Parse(item.MenuID)
+		itemSubtotal := item.Price * float64(item.Quantity)
+		subtotal += itemSubtotal
+		
+		orderDetails = append(orderDetails, models.OrderDetail{
+			MenuID:   itemUUID,
+			MenuName: item.MenuName,
+			Quantity: item.Quantity,
+			Price:    item.Price,
+			Subtotal: itemSubtotal,
+			Notes:    item.Notes,
+			Station:  models.StationKitchen, // Should be fetched from Menu repo
+		})
+	}
+
+	taxAmount := subtotal * 0.11 // 11% PPN
+	serviceCharge := subtotal * 0.05 // 5% Service Charge
+	total := subtotal + taxAmount + serviceCharge - req.DiscountAmount
+
+	order := &models.Order{
+		OrderNumber:    orderNumber,
+		BranchID:       branchUUID,
+		TableID:        tableUUID,
+		EmployeeID:     userUUID,
+		CustomerName:   req.CustomerName,
+		CustomerPhone:  req.CustomerPhone,
+		OrderType:      models.OrderType(req.OrderType),
+		Status:         models.OrderPending,
+		Subtotal:       subtotal,
+		TaxAmount:      taxAmount,
+		ServiceCharge:  serviceCharge,
+		DiscountAmount: req.DiscountAmount,
+		Total:          total,
+		Notes:          req.Notes,
+		OrderDetails:   orderDetails,
+	}
+
+	err := s.orderRepo.Create(order)
+	if err != nil {
+		return nil, err
+	}
+
+	return order, nil
+}
+
+func (s *orderService) GetOrder(id string) (*models.Order, error) {
+	return s.orderRepo.FindByID(id)
+}
+
+func (s *orderService) ConfirmOrder(orderID string) (*models.Order, error) {
+	order, err := s.orderRepo.FindByID(orderID)
+	if err != nil {
+		return nil, errors.New("order not found: " + err.Error())
+	}
+
+	if order.Status != models.OrderPending {
+		return nil, errors.New("only pending orders can be confirmed")
+	}
+
+	tx := s.db.Begin()
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	// Flag to ensure we don't commit if an error occurs
+	success := false
+	defer func() {
+		if !success {
+			tx.Rollback()
+		}
+	}()
+
+	for _, detail := range order.OrderDetails {
+		// Get Recipe
+		var recipe models.Recipe
+		err := tx.Preload("Ingredients").Where("menu_id = ?", detail.MenuID).First(&recipe).Error
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("failed to fetch recipe for menu: " + detail.MenuName)
 		}
 
-		if err := tx.Create(&createdOrder).Error; err != nil {
-			return err
-		}
+		if err == nil {
+			// Deduct Raw Materials based on BOM
+			for _, ingredient := range recipe.Ingredients {
+				totalDeduction := ingredient.Quantity * float64(detail.Quantity)
 
-		for _, item := range items {
-			var menu models.Menu
+				var rawMaterial models.RawMaterial
+				if err := tx.Where("id = ?", ingredient.RawMaterialID).First(&rawMaterial).Error; err != nil {
+					return nil, errors.New("raw material not found")
+				}
 
-			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-				First(&menu, item.MenuID).Error; err != nil {
-				return fmt.Errorf("menu %d not found", item.MenuID)
-			}
+				if rawMaterial.CurrentStock < totalDeduction {
+					return nil, fmt.Errorf("insufficient stock for raw material: %s", rawMaterial.Name)
+				}
 
-			if menu.DailyStock < int64(item.Qty) {
-				return fmt.Errorf("stock not enough for %s", menu.MenuName)
-			}
-
-			// Update stock
-			if err := tx.Model(&menu).
-				Update("daily_stock", menu.DailyStock-int64(item.Qty)).Error; err != nil {
-				return err
-			}
-
-			// Tidak perlu subtotal (trigger yang handle)
-			detail := models.OrderDetail{
-				OrderID:   createdOrder.OrderID,
-				MenuID:    menu.MenuID,
-				Quantity:  item.Qty,
-				UnitPrice: menu.Price,
-			}
-
-			if err := tx.Create(&detail).Error; err != nil {
-				return err
+				rawMaterial.CurrentStock -= totalDeduction
+				if err := tx.Save(&rawMaterial).Error; err != nil {
+					return nil, errors.New("failed to update raw material stock")
+				}
 			}
 		}
 
-		return nil
-	})
+		// Decrement Menu Daily Stock (Snapshot)
+		var menu models.Menu
+		if err := tx.Where("id = ?", detail.MenuID).First(&menu).Error; err == nil {
+			menu.DailyStock -= detail.Quantity
+			if menu.DailyStock < 0 {
+				menu.DailyStock = 0
+			}
+			tx.Save(&menu)
+		}
+	}
 
-	return &createdOrder, err
+	// Update order status
+	order.Status = models.OrderConfirmed
+	if err := tx.Save(order).Error; err != nil {
+		return nil, errors.New("failed to update order status")
+	}
+
+	success = true
+	tx.Commit()
+
+	return order, nil
 }

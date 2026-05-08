@@ -4,44 +4,32 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/Lapnes/pos-kopitiam/internal/models"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
-func ConnectDB() *gorm.DB {
+func InitDB(cfg *Config) *gorm.DB {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		GetEnv("DB_USER", "root"),
-		GetEnv("DB_PASSWORD", ""),
-		GetEnv("DB_HOST", "127.0.0.1"),
-		GetEnv("DB_PORT", "3306"),
-		GetEnv("DB_NAME", "pos_kopitiam"),
+		cfg.DBUser,
+		cfg.DBPassword,
+		cfg.DBHost,
+		cfg.DBPort,
+		cfg.DBName,
 	)
 
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
+	gormConfig := &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
-		// DisableForeignKeyConstraintWhenMigrating: true, // Penting!
-	})
-
-	if err != nil {
-		log.Fatalf("[NO] Gagal koneksi DB: %v", err)
 	}
 
-	log.Println("[YES] Database Connected!")
-
-	// Migrasi semua tabel
-	err = db.AutoMigrate(
-		&models.Category{},
-		&models.Employee{},
-		&models.Menu{},
-		&models.Order{},
-		&models.OrderDetail{},
-	)
-	if err != nil {
-		log.Fatalf("[NO] AutoMigrate gagal: %v", err)
+	if cfg.AppEnv == "prod" {
+		gormConfig.Logger = logger.Default.LogMode(logger.Error)
 	}
 
-	log.Println("[SUCCESS] AutoMigrate Success!")
+	db, err := gorm.Open(mysql.Open(dsn), gormConfig)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+
 	return db
 }

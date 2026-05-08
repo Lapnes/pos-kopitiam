@@ -7,44 +7,78 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Store, UserCircle, KeyRound, ArrowRight } from "lucide-react";
+import api from "@/lib/api/axios";
+import { useAuthStore } from "@/store/useAuthStore";
+import { AxiosError } from "axios";
 
 export default function LoginPage() {
   const router = useRouter();
+  const setAuth = useAuthStore((state) => state.setAuth);
   
   // Cashier State
   const [pin, setPin] = useState("");
+  const [isLoadingCashier, setIsLoadingCashier] = useState(false);
   
   // Admin State
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoadingAdmin, setIsLoadingAdmin] = useState(false);
 
-  const handleCashierLogin = (e: React.FormEvent) => {
+  const handleCashierLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (pin.length < 4) {
       toast.error("Invalid PIN", { description: "Please enter a valid PIN." });
       return;
     }
     
-    // Mock login success
-    toast.success("Login Successful", { 
-      description: "Welcome back, Cashier 01!",
-      icon: <UserCircle className="w-5 h-5 text-emerald-500" />
-    });
-    router.push("/");
+    setIsLoadingCashier(true);
+    try {
+      const response = await api.post("/auth/login-pin", { pin_code: pin });
+      const { user, access_token } = response.data.data;
+      
+      setAuth(user, access_token);
+      
+      toast.success("Login Successful", { 
+        description: `Welcome back, ${user.name}!`,
+        icon: <UserCircle className="w-5 h-5 text-emerald-500" />
+      });
+      router.push("/");
+    } catch (error) {
+      const err = error as AxiosError<{ message: string }>;
+      toast.error("Login Failed", { 
+        description: err.response?.data?.message || "Invalid PIN or server error." 
+      });
+    } finally {
+      setIsLoadingCashier(false);
+    }
   };
 
-  const handleAdminLogin = (e: React.FormEvent) => {
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
       toast.error("Missing Credentials", { description: "Please enter both email and password." });
       return;
     }
     
-    // Mock login success
-    toast.success("Admin Access Granted", { 
-      description: "Redirecting to Dashboard..." 
-    });
-    router.push("/admin"); // Will be created in Phase 4
+    setIsLoadingAdmin(true);
+    try {
+      const response = await api.post("/auth/login", { email, password });
+      const { user, access_token } = response.data.data;
+      
+      setAuth(user, access_token);
+      
+      toast.success("Admin Access Granted", { 
+        description: "Redirecting to Dashboard..." 
+      });
+      router.push("/admin"); // Will be created in Phase 4
+    } catch (error) {
+      const err = error as AxiosError<{ message: string }>;
+      toast.error("Login Failed", { 
+        description: err.response?.data?.message || "Invalid credentials." 
+      });
+    } finally {
+      setIsLoadingAdmin(false);
+    }
   };
 
   return (
@@ -96,16 +130,18 @@ export default function LoginPage() {
                       value={pin}
                       onChange={(e) => setPin(e.target.value)}
                       maxLength={6}
+                      disabled={isLoadingCashier}
                     />
                   </div>
                 </div>
                 
                 <button 
                   type="submit"
-                  className="w-full h-12 flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-semibold transition-all active:scale-[0.98] shadow-md"
+                  disabled={isLoadingCashier}
+                  className="w-full h-12 flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white rounded-xl font-semibold transition-all active:scale-[0.98] shadow-md"
                 >
-                  Login as Cashier
-                  <ArrowRight className="w-4 h-4" />
+                  {isLoadingCashier ? "Logging in..." : "Login as Cashier"}
+                  {!isLoadingCashier && <ArrowRight className="w-4 h-4" />}
                 </button>
               </form>
             </TabsContent>
@@ -126,6 +162,7 @@ export default function LoginPage() {
                     className="h-11"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoadingAdmin}
                   />
                 </div>
                 <div className="space-y-2">
@@ -137,15 +174,17 @@ export default function LoginPage() {
                     className="h-11"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoadingAdmin}
                   />
                 </div>
                 
                 <button 
                   type="submit"
-                  className="w-full h-12 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold transition-all active:scale-[0.98] shadow-md mt-6"
+                  disabled={isLoadingAdmin}
+                  className="w-full h-12 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-400 text-white rounded-xl font-semibold transition-all active:scale-[0.98] shadow-md mt-6"
                 >
-                  Login as Admin
-                  <ArrowRight className="w-4 h-4" />
+                  {isLoadingAdmin ? "Logging in..." : "Login as Admin"}
+                  {!isLoadingAdmin && <ArrowRight className="w-4 h-4" />}
                 </button>
               </form>
             </TabsContent>

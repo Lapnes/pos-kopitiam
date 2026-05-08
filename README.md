@@ -113,6 +113,7 @@ pos_kopitiam_db_baru/
 
 ### Prasyarat
 - Go 1.23 atau lebih baru
+- Node.js 18+ & npm (untuk Frontend)
 - Docker & Docker Compose
 - Git
 
@@ -124,49 +125,55 @@ pos_kopitiam_db_baru/
    cd pos-kopitiam
    ```
 
-2. **Install Dependencies**
-   ```bash
-   go mod tidy
-   ```
-
-3. **Jalankan Database via Docker**
-   Jalankan container MySQL dan Redis di latar belakang secara terisolasi:
-   ```bash
-   docker compose up -d --build
-   ```
-
-4. **Konfigurasi Environment**
+2. **Konfigurasi Environment Backend**
    Buat file `.env` di root directory. Anda bisa menyalin file contoh yang telah disediakan:
    ```bash
    cp .env.example .env
    ```
    *Secara default, nilainya sudah cocok dengan konfigurasi Docker Compose.*
 
-5. **Jalankan Migrasi Database**
-   Pastikan MySQL sudah siap (kurang lebih butuh beberapa detik). Setelah siap, buat skema tabelnya:
+3. **Install Dependencies Backend**
    ```bash
-   go run cmd/migrate/main.go
+   go mod tidy
    ```
 
-6. **Jalankan Seeder (Opsional)**
-   Populasikan database dengan akun karyawan (Admin, Kasir, dsb.), area, meja, kategori, dan menu:
+4. **Jalankan Aplikasi (Multi-Terminal Setup)**
+   Karena proyek ini mengusung arsitektur *Fullstack* (Go Backend + Next.js Frontend), Anda perlu menjalankan beberapa layanan secara bersamaan. Buka 5 tab terminal berbeda dan jalankan perintah berikut secara berurutan:
+
+   **Terminal 1 (Database & In-Memory Store):**
+   Jalankan container MySQL dan Redis di latar belakang.
    ```bash
+   sudo docker compose up -d
+   ```
+
+   **Terminal 2 (Database Migration & Seeding):**
+   Pastikan MySQL di Terminal 1 sudah siap (butuh beberapa detik). Setelah siap, buat skema tabel dan populasikan data master awal:
+   ```bash
+   go run cmd/migrate/main.go
    go run seeds/seed.go
    ```
 
-7. **Jalankan Aplikasi**
-   Buka dua jendela terminal untuk menjalankan subsistem secara bersamaan.
-
-   **Terminal 1 (Menjalankan API Server):**
+   **Terminal 3 (Backend API Server):**
+   Menjalankan core API KopiTiam.
    ```bash
    go run cmd/api/main.go
    ```
    *API akan berjalan di http://localhost:8080*
 
-   **Terminal 2 (Menjalankan Background Worker):**
+   **Terminal 4 (Backend Background Worker):**
+   Menjalankan Asynq worker untuk memproses antrean tugas di latar belakang (seperti sinkronisasi pesanan ke Bigcapital).
    ```bash
    go run cmd/worker/main.go
    ```
+
+   **Terminal 5 (Frontend Next.js):**
+   Menjalankan antarmuka pengguna Cashier dan Admin.
+   ```bash
+   cd fe/frontend
+   npm install
+   npm run dev
+   ```
+   *Frontend akan berjalan di http://localhost:3000*
 
 ## Dokumentasi API
 

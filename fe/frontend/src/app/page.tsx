@@ -1,10 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useCartStore } from "@/store/useCartStore";
+import { useAuthStore } from "@/store/useAuthStore";
 import { Menu } from "@/types";
-import { Plus, Minus, Trash2, ShoppingCart, Store, UserCircle } from "lucide-react";
+import { Plus, Minus, Trash2, ShoppingCart, Store, UserCircle, LogOut, History } from "lucide-react";
 import { CheckoutDialog } from "@/components/pos/CheckoutDialog";
+import { HistoryDialog } from "@/components/pos/HistoryDialog";
 
 const mockMenus: Menu[] = [
   {
@@ -46,6 +49,9 @@ const mockMenus: Menu[] = [
 ];
 
 export default function CashierPage() {
+  const router = useRouter();
+  const { user, isAuthenticated, logout } = useAuthStore();
+  
   const {
     items,
     addItem,
@@ -57,6 +63,16 @@ export default function CashierPage() {
     getGrandTotal,
   } = useCartStore();
 
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    if (!isAuthenticated) {
+      router.push("/login");
+    }
+  }, [isAuthenticated, router]);
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -66,6 +82,14 @@ export default function CashierPage() {
     }).format(amount);
   };
 
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
+  };
+
+  // Prevent hydration errors by not rendering until mounted
+  if (!mounted || !isAuthenticated) return null;
+
   return (
     <div className="flex flex-col h-screen bg-slate-50 text-slate-900 overflow-hidden font-sans">
       {/* Top Header */}
@@ -74,14 +98,35 @@ export default function CashierPage() {
           <Store className="w-6 h-6 text-emerald-600" />
           <h1 className="text-xl font-bold tracking-tight text-slate-800">POS KopiTiam</h1>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col items-end">
-            <span className="text-sm font-semibold text-slate-700">Cashier 01</span>
-            <span className="text-xs text-emerald-600 font-medium">Active Shift</span>
+        
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => setHistoryOpen(true)}
+            className="flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors"
+          >
+            <History className="w-4 h-4" />
+            Transaction History
+          </button>
+          
+          <div className="w-px h-8 bg-slate-200 mx-1"></div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col items-end">
+              <span className="text-sm font-semibold text-slate-700">{user?.name || "Cashier"}</span>
+              <span className="text-xs text-emerald-600 font-medium">Active Shift</span>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
+              <UserCircle className="w-6 h-6 text-slate-500" />
+            </div>
           </div>
-          <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
-            <UserCircle className="w-6 h-6 text-slate-500" />
-          </div>
+          
+          <button 
+            onClick={handleLogout}
+            className="ml-2 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+            title="Logout"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
         </div>
       </header>
 
@@ -198,6 +243,8 @@ export default function CashierPage() {
           </div>
         </div>
       </main>
+
+      <HistoryDialog open={historyOpen} onOpenChange={setHistoryOpen} />
     </div>
   );
 }

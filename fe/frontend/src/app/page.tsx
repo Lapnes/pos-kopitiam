@@ -9,44 +9,30 @@ import { Plus, Minus, Trash2, ShoppingCart, Store, UserCircle, LogOut, History }
 import { CheckoutDialog } from "@/components/pos/CheckoutDialog";
 import { HistoryDialog } from "@/components/pos/HistoryDialog";
 
-const mockMenus: Menu[] = [
-  {
-    id: "uuid-1",
-    name: "Nasi Goreng Spesial",
-    price: 35000,
-    color: "bg-orange-100 text-orange-700",
-  },
-  {
-    id: "uuid-2",
-    name: "Mie Goreng Jawa",
-    price: 30000,
-    color: "bg-yellow-100 text-yellow-700",
-  },
-  {
-    id: "uuid-3",
-    name: "Kopi Susu Gula Aren",
-    price: 25000,
-    color: "bg-amber-100 text-amber-800",
-  },
-  {
-    id: "uuid-4",
-    name: "Es Teh Manis",
-    price: 10000,
-    color: "bg-red-100 text-red-800",
-  },
-  {
-    id: "uuid-5",
-    name: "Roti Bakar Coklat",
-    price: 20000,
-    color: "bg-stone-200 text-stone-800",
-  },
-  {
-    id: "uuid-6",
-    name: "Ayam Penyet",
-    price: 32000,
-    color: "bg-rose-100 text-rose-800",
-  },
-];
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/api/axios";
+
+const getMenuColor = (name: string) => {
+  const colors = [
+    "bg-orange-100 text-orange-700",
+    "bg-yellow-100 text-yellow-700",
+    "bg-amber-100 text-amber-800",
+    "bg-red-100 text-red-800",
+    "bg-stone-200 text-stone-800",
+    "bg-rose-100 text-rose-800",
+    "bg-emerald-100 text-emerald-800",
+    "bg-blue-100 text-blue-800",
+    "bg-indigo-100 text-indigo-800",
+    "bg-violet-100 text-violet-800",
+    "bg-fuchsia-100 text-fuchsia-800",
+    "bg-pink-100 text-pink-800"
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
 
 export default function CashierPage() {
   const router = useRouter();
@@ -65,6 +51,15 @@ export default function CashierPage() {
 
   const [historyOpen, setHistoryOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  const { data: menus = [], isLoading: isLoadingMenus } = useQuery({
+    queryKey: ["menus"],
+    queryFn: async () => {
+      const response = await api.get("/menus");
+      return response.data.data as Menu[];
+    },
+    enabled: isAuthenticated,
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -135,23 +130,30 @@ export default function CashierPage() {
         {/* Left Panel: Menu Grid (70%) */}
         <div className="w-[70%] h-full overflow-y-auto p-6 bg-slate-50/50">
           <h2 className="text-2xl font-bold text-slate-800 mb-6">Menu</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {mockMenus.map((menu) => (
-              <button
-                key={menu.id}
-                onClick={() => addItem(menu)}
-                className="flex flex-col h-40 bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 border border-slate-100 hover:border-emerald-300 active:scale-95 text-left group"
-              >
-                <div className={`flex-1 w-full flex items-center justify-center ${menu.color} font-bold text-lg opacity-90 group-hover:opacity-100 transition-opacity`}>
-                  {menu.name.substring(0, 2).toUpperCase()}
-                </div>
-                <div className="p-3 bg-white w-full">
-                  <h3 className="font-semibold text-slate-800 line-clamp-1">{menu.name}</h3>
-                  <div className="font-bold text-emerald-600 mt-1">{formatCurrency(menu.price)}</div>
-                </div>
-              </button>
-            ))}
-          </div>
+          
+          {isLoadingMenus ? (
+            <div className="flex items-center justify-center h-40">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {menus.map((menu) => (
+                <button
+                  key={menu.id}
+                  onClick={() => addItem(menu)}
+                  className="flex flex-col h-40 bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 border border-slate-100 hover:border-emerald-300 active:scale-95 text-left group"
+                >
+                  <div className={`flex-1 w-full flex items-center justify-center ${menu.color || getMenuColor(menu.name)} font-bold text-lg opacity-90 group-hover:opacity-100 transition-opacity`}>
+                    {menu.name.substring(0, 2).toUpperCase()}
+                  </div>
+                  <div className="p-3 bg-white w-full">
+                    <h3 className="font-semibold text-slate-800 line-clamp-1">{menu.name}</h3>
+                    <div className="font-bold text-emerald-600 mt-1">{formatCurrency(menu.price)}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Right Panel: Cart Sidebar (30%) */}

@@ -33,7 +33,7 @@ export default function LoginPage() {
     
     setIsLoadingCashier(true);
     try {
-      const response = await api.post("/auth/login-pin", { pin_code: pin });
+      const response = await api.post("/auth/login-pin", { pin: pin });
       const { user, access_token } = response.data.data;
       
       setAuth(user, access_token);
@@ -45,8 +45,9 @@ export default function LoginPage() {
       router.push("/");
     } catch (error) {
       const err = error as AxiosError<{ message: string }>;
+      console.error("CASHIER LOGIN ERROR:", err.response?.data || err.message);
       toast.error("Login Failed", { 
-        description: err.response?.data?.message || "Invalid PIN or server error." 
+        description: err.response?.data?.message || err.message || "Invalid PIN or server error." 
       });
     } finally {
       setIsLoadingCashier(false);
@@ -73,8 +74,9 @@ export default function LoginPage() {
       router.push("/admin"); // Will be created in Phase 4
     } catch (error) {
       const err = error as AxiosError<{ message: string }>;
+      console.error("ADMIN LOGIN ERROR:", err.response?.data || err.message);
       toast.error("Login Failed", { 
-        description: err.response?.data?.message || "Invalid credentials." 
+        description: err.response?.data?.message || err.message || "Invalid credentials." 
       });
     } finally {
       setIsLoadingAdmin(false);

@@ -25,16 +25,11 @@ func main() {
 
 	// Create Users
 	hashedPassword, _ := utils.HashPassword("password123")
-	hashedPin1, _ := utils.HashPassword("111111")
-	hashedPin2, _ := utils.HashPassword("222222")
-	hashedPin3, _ := utils.HashPassword("333333")
-	hashedPin4, _ := utils.HashPassword("444444")
-
 	users := []models.Employee{
-		{BranchID: mainBranch.ID, Name: "Super Admin", Email: "admin@kopitiam.com", Password: hashedPassword, PINCode: hashedPin1, Role: models.RoleSuperadmin},
-		{BranchID: mainBranch.ID, Name: "Manager", Email: "manager@kopitiam.com", Password: hashedPassword, PINCode: hashedPin2, Role: models.RoleManager},
-		{BranchID: mainBranch.ID, Name: "Cashier 1", Email: "cashier1@kopitiam.com", Password: hashedPassword, PINCode: hashedPin3, Role: models.RoleCashier},
-		{BranchID: mainBranch.ID, Name: "Kitchen 1", Email: "kitchen1@kopitiam.com", Password: hashedPassword, PINCode: hashedPin4, Role: models.RoleKitchen},
+		{BranchID: mainBranch.ID, Name: "Super Admin", Email: "admin@kopitiam.com", Password: hashedPassword, PINCode: "111111", Role: models.RoleSuperadmin},
+		{BranchID: mainBranch.ID, Name: "Manager", Email: "manager@kopitiam.com", Password: hashedPassword, PINCode: "222222", Role: models.RoleManager},
+		{BranchID: mainBranch.ID, Name: "Cashier 1", Email: "cashier1@kopitiam.com", Password: hashedPassword, PINCode: "333333", Role: models.RoleCashier},
+		{BranchID: mainBranch.ID, Name: "Kitchen 1", Email: "kitchen1@kopitiam.com", Password: hashedPassword, PINCode: "444444", Role: models.RoleKitchen},
 	}
 
 	for _, user := range users {

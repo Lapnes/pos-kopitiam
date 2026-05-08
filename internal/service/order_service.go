@@ -15,6 +15,7 @@ import (
 
 type OrderService interface {
 	CreateOrder(req dto.CreateOrderRequest, userID string, branchID string) (*models.Order, error)
+	GetOrders() ([]models.Order, error)
 	GetOrder(id string) (*models.Order, error)
 	ConfirmOrder(orderID string) (*models.Order, error)
 }
@@ -98,6 +99,10 @@ func (s *orderService) CreateOrder(req dto.CreateOrderRequest, userID string, br
 	}
 
 	return order, nil
+}
+
+func (s *orderService) GetOrders() ([]models.Order, error) {
+	return s.orderRepo.FindAll()
 }
 
 func (s *orderService) GetOrder(id string) (*models.Order, error) {

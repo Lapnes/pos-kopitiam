@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useCartStore } from "@/store/useCartStore";
 import { toast } from "sonner";
+import api from "@/lib/api/axios";
 import {
   Dialog,
   DialogContent,
@@ -34,19 +35,48 @@ export function CheckoutDialog({ children }: { children: React.ReactNode }) {
     }).format(amount);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitDisabled) return;
+    if (isSubmitDisabled || isSubmitting) return;
 
-    // Simulate API Call
-    toast.success("Transaction Successful!", {
-      description: `Change to return: ${formatCurrency(change)}`,
-      icon: <CheckCircle2 className="w-5 h-5 text-emerald-500" />,
-    });
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        table_id: "91610a61-5f2f-444a-a97f-1f0d6ad185a5", // Hardcoded Table 1 for Phase 4
+        customer_name: "Walk-in Customer",
+        customer_phone: "",
+        order_type: "dine_in",
+        notes: "",
+        discount_amount: 0,
+        items: items.map((item) => ({
+          menu_id: item.id,
+          menu_name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          notes: "",
+        })),
+      };
 
-    clearCart();
-    setOpen(false);
-    setCashReceived("");
+      await api.post("/orders", payload);
+
+      toast.success("Transaction Successful!", {
+        description: `Change to return: ${formatCurrency(change)}`,
+        icon: <CheckCircle2 className="w-5 h-5 text-emerald-500" />,
+      });
+
+      clearCart();
+      setOpen(false);
+      setCashReceived("");
+    } catch (error: any) {
+      console.error("CHECKOUT ERROR:", error.response?.data || error.message);
+      toast.error("Checkout Failed", {
+        description: error.response?.data?.message || "Server error while processing order.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

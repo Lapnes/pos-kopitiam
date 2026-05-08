@@ -1,9 +1,16 @@
 export interface Menu {
   id: string;
+  category_id: string;
   name: string;
+  description: string;
   price: number;
-  imageUrl?: string;
-  color?: string; // fallback if no image
+  cost_price: number;
+  daily_stock: number;
+  is_active: boolean;
+  station: string;
+  image_url?: string;
+  bigcapital_item_id?: string;
+  color?: string; // fallback if no image (frontend-only logic)
 }
 
 export interface CartItem extends Menu {

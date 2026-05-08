@@ -37,7 +37,12 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 }
 
 func (h *OrderHandler) GetOrders(c *gin.Context) {
-	c.JSON(http.StatusOK, utils.SuccessResponse("List of orders", nil, nil))
+	orders, err := h.orderService.GetOrders()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to fetch orders", "INTERNAL_ERROR", err.Error()))
+		return
+	}
+	c.JSON(http.StatusOK, utils.SuccessResponse("List of orders", orders, nil))
 }
 
 func (h *OrderHandler) GetOrder(c *gin.Context) {

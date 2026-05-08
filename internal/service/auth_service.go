@@ -38,7 +38,7 @@ func (s *authService) Login(req dto.LoginRequest) (*dto.LoginResponse, error) {
 		return nil, errors.New("invalid credentials")
 	}
 
-	return s.generateTokens(user.ID.String(), string(user.Role), user.BranchID.String())
+	return s.generateTokens(user.ID.String(), user.Name, user.Email, string(user.Role), user.BranchID.String())
 }
 
 func (s *authService) LoginPIN(req dto.LoginPINRequest) (*dto.LoginResponse, error) {
@@ -51,10 +51,10 @@ func (s *authService) LoginPIN(req dto.LoginPINRequest) (*dto.LoginResponse, err
 		return nil, errors.New("account is disabled")
 	}
 
-	return s.generateTokens(user.ID.String(), string(user.Role), user.BranchID.String())
+	return s.generateTokens(user.ID.String(), user.Name, user.Email, string(user.Role), user.BranchID.String())
 }
 
-func (s *authService) generateTokens(userID, role, branchID string) (*dto.LoginResponse, error) {
+func (s *authService) generateTokens(userID, name, email, role, branchID string) (*dto.LoginResponse, error) {
 	accessToken, err := utils.GenerateJWT(userID, role, branchID, s.cfg.JWTSecret, 24*time.Hour)
 	if err != nil {
 		return nil, err
@@ -70,8 +70,11 @@ func (s *authService) generateTokens(userID, role, branchID string) (*dto.LoginR
 		RefreshToken: refreshToken,
 		User: dto.UserResponse{
 			ID:       userID,
+			Name:     name,
+			Email:    email,
 			Role:     role,
 			BranchID: branchID,
 		},
 	}, nil
 }
+

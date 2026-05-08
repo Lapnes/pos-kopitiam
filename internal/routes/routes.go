@@ -21,6 +21,7 @@ func InitRoutes(router *gin.Engine, db *gorm.DB, redisClient *redis.Client, cfg 
 	returnRepo := repository.NewReturnRepository(db)
 	inventoryRepo := repository.NewInventoryRepository(db)
 	analyticsRepo := repository.NewAnalyticsRepository(db)
+	menuRepo := repository.NewMenuRepository(db)
 	
 	// Services
 	authService := service.NewAuthService(userRepo, cfg)
@@ -30,6 +31,7 @@ func InitRoutes(router *gin.Engine, db *gorm.DB, redisClient *redis.Client, cfg 
 	inventoryService := service.NewInventoryService(inventoryRepo)
 	analyticsService := service.NewAnalyticsService(analyticsRepo)
 	printerService := service.NewPrinterService(orderRepo, userRepo)
+	menuService := service.NewMenuService(menuRepo)
 	
 	// Handlers
 	authHandler := handler.NewAuthHandler(authService)
@@ -39,6 +41,7 @@ func InitRoutes(router *gin.Engine, db *gorm.DB, redisClient *redis.Client, cfg 
 	inventoryHandler := handler.NewInventoryHandler(inventoryService)
 	analyticsHandler := handler.NewAnalyticsHandler(analyticsService)
 	printerHandler := handler.NewPrinterHandler(printerService)
+	menuHandler := handler.NewMenuHandler(menuService)
 
 	// Health Check
 	router.GET("/health", func(c *gin.Context) {
@@ -63,6 +66,11 @@ func InitRoutes(router *gin.Engine, db *gorm.DB, redisClient *redis.Client, cfg 
 	// Protected routes
 	protected := api.Group("/")
 	protected.Use(middleware.AuthMiddleware(cfg.JWTSecret))
+
+	menus := protected.Group("/menus")
+	{
+		menus.GET("", menuHandler.GetActiveMenus)
+	}
 	
 	orders := protected.Group("/orders")
 	{

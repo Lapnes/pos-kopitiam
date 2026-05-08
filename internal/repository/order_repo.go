@@ -8,6 +8,7 @@ import (
 type OrderRepository interface {
 	Create(order *models.Order) error
 	FindByID(id string) (*models.Order, error)
+	FindAll() ([]models.Order, error)
 	Update(order *models.Order) error
 }
 
@@ -30,6 +31,12 @@ func (r *OrderRepo) FindByID(id string) (*models.Order, error) {
 		return nil, err
 	}
 	return &order, nil
+}
+
+func (r *OrderRepo) FindAll() ([]models.Order, error) {
+	var orders []models.Order
+	err := r.db.Preload("OrderDetails").Preload("Payments").Order("created_at desc").Find(&orders).Error
+	return orders, err
 }
 
 func (r *OrderRepo) Update(order *models.Order) error {

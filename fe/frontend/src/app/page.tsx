@@ -4,6 +4,7 @@ import React from "react";
 import { useCartStore } from "@/store/useCartStore";
 import { Menu } from "@/types";
 import { Plus, Minus, Trash2, ShoppingCart, Store, UserCircle } from "lucide-react";
+import { CheckoutDialog } from "@/components/pos/CheckoutDialog";
 
 const mockMenus: Menu[] = [
   {
@@ -186,12 +187,14 @@ export default function CashierPage() {
               </div>
             </div>
 
-            <button
-              disabled={items.length === 0}
-              className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-md active:scale-[0.98]"
-            >
-              Checkout
-            </button>
+            <CheckoutDialog>
+              <button
+                disabled={items.length === 0}
+                className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-md active:scale-[0.98]"
+              >
+                Checkout
+              </button>
+            </CheckoutDialog>
           </div>
         </div>
       </main>

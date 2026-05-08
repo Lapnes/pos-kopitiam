@@ -34,45 +34,57 @@ POS KopiTiam adalah sistem Point of Sale (POS) sederhana untuk kafe KopiTiam, di
 
 ## Struktur Proyek
 
+Proyek ini menggunakan **Clean Architecture** dengan pemisahan antara `backend/` (Go) dan `frontend/` (Next.js):
+
 ```
 pos_kopitiam/
-├── cmd/
-│   ├── api/v1/
-│   │   └── main.go          # Entry point API
-│   └── db/
-│       └── runMigration.go  # Script migrasi database
-├── internal/
-│   ├── config/
-│   │   ├── config.go        # Konfigurasi aplikasi
-│   │   ├── database.go      # Koneksi database
-│   │   ├── db_logic.go      # Logika database
-│   │   ├── fk_constraint.go # Foreign key constraints
-│   │   └── seeder.go        # Data seeding
-│   ├── dto/
-│   │   └── report.go        # Data Transfer Objects
-│   ├── models/
-│   │   └── domain.go        # Model domain
-│   └── service/
-│       └── order_service.go # Business logic untuk order
-├── app/                     # Next.js app directory
-│   ├── globals.css          # Global styles & CSS variables
-│   ├── layout.tsx           # Root layout
-│   └── page.tsx             # Halaman utama POS
-├── components/              # React components
-│   ├── CartPanel.tsx
-│   ├── MenuCard.tsx
-│   ├── Modal.tsx
-│   ├── OrdersTab.tsx
-│   └── Toast.tsx
-├── lib/
-│   └── api.ts               # API helper & utilities
-├── types/
-│   └── index.ts             # TypeScript types
-├── docker-compose.yml       # MySQL via Docker
-├── go.mod                   # Go module file
-├── package.json             # Node.js dependencies
-├── pos_kopitiam_full.sql    # Schema database
-└── README.md                # Dokumentasi ini
+├── backend/                         # Go REST API
+│   ├── cmd/
+│   │   ├── api/v1/
+│   │   │   └── main.go              # Entry point API
+│   │   └── db/
+│   │       └── runMigration.go      # Script migrasi database
+│   ├── internal/
+│   │   ├── config/
+│   │   │   ├── config.go            # Konfigurasi aplikasi
+│   │   │   ├── database.go          # Koneksi database
+│   │   │   ├── db_logic.go          # Logika database
+│   │   │   ├── fk_constraint.go     # Foreign key constraints
+│   │   │   └── seeder.go            # Data seeding
+│   │   ├── dto/
+│   │   │   └── report.go            # Data Transfer Objects
+│   │   ├── models/
+│   │   │   └── domain.go            # Model domain
+│   │   └── service/
+│   │       └── order_service.go     # Business logic untuk order
+│   ├── docker-compose.yml           # MySQL via Docker
+│   ├── pos_kopitiam_full.sql        # Schema database
+│   ├── go.mod                       # Go module file
+│   ├── go.sum
+│   └── .env.example                 # Contoh konfigurasi backend
+│
+├── frontend/                        # Next.js App
+│   ├── app/
+│   │   ├── globals.css              # Global styles & CSS variables
+│   │   ├── layout.tsx               # Root layout
+│   │   └── page.tsx                 # Halaman utama POS
+│   ├── components/
+│   │   ├── CartPanel.tsx
+│   │   ├── MenuCard.tsx
+│   │   ├── Modal.tsx
+│   │   ├── OrdersTab.tsx
+│   │   └── Toast.tsx
+│   ├── lib/
+│   │   └── api.ts                   # API helper & utilities
+│   ├── types/
+│   │   └── index.ts                 # TypeScript types
+│   ├── public/                      # Static assets
+│   ├── package.json                 # Node.js dependencies
+│   ├── next.config.ts
+│   └── .env.local.example           # Contoh konfigurasi frontend
+│
+├── dbdiagram.png                    # Diagram database
+└── README.md                        # Dokumentasi ini
 ```
 
 ---
@@ -101,31 +113,51 @@ git clone https://github.com/Lapnes/pos-kopitiam.git
 cd pos-kopitiam
 ```
 
+> **Catatan Struktur:** Project ini menggunakan clean architecture — backend dan frontend dipisah ke folder masing-masing (`backend/` dan `frontend/`). Pastikan kamu masuk ke subfolder yang benar di setiap langkah.
+
 ---
 
 ## Langkah 2 — Konfigurasi Environment (.env)
 
-Buat file `.env` di root directory project:
+Project ini memiliki dua environment file — satu untuk backend, satu untuk frontend.
+
+### 2a. Konfigurasi Backend
+
+Buat file `.env` di dalam folder `backend/`:
 
 ```bash
-# Buat file .env
-touch .env
+cd backend
+cp .env.example .env
 ```
 
-Isi file `.env` dengan konfigurasi berikut:
+Isi file `backend/.env`:
 
 ```env
+# App environment: "dev" akan auto-seed data awal, "prod" tidak
+APP_ENV=dev
+PORT=3400
+
 # Database
-DB_HOST=localhost
+DB_HOST=127.0.0.1
 DB_PORT=4406
 DB_USER=root
 DB_PASSWORD=rahasia123
 DB_NAME=pos_kopitiam
+```
 
-# App environment: "dev" akan auto-seed data awal, "prod" tidak
-APP_ENV=dev
+### 2b. Konfigurasi Frontend
 
-# Frontend — URL backend (digunakan oleh Next.js)
+Buat file `.env.local` di dalam folder `frontend/`:
+
+```bash
+cd ../frontend
+cp .env.local.example .env.local
+```
+
+Isi file `frontend/.env.local`:
+
+```env
+# URL Backend API (Go server)
 NEXT_PUBLIC_API_URL=http://localhost:3400/api/v1
 ```
 
@@ -138,7 +170,11 @@ NEXT_PUBLIC_API_URL=http://localhost:3400/api/v1
 
 ## Langkah 3 — Jalankan Database (MySQL via Docker)
 
+`docker-compose.yml` berada di dalam folder `backend/`. Pastikan kamu berada di folder tersebut:
+
 ```bash
+cd backend
+
 # Jalankan MySQL container di background
 docker compose up -d
 
@@ -162,6 +198,12 @@ Tunggu sekitar 10–15 detik agar MySQL selesai inisialisasi sebelum lanjut ke l
 ---
 
 ## Langkah 4 — Setup Backend (Go)
+
+Masuk ke folder `backend/` terlebih dahulu (jika belum):
+
+```bash
+cd backend
+```
 
 ### 4a. Install Go Dependencies
 
@@ -210,10 +252,10 @@ curl http://localhost:3400/health
 
 ## Langkah 5 — Setup Frontend (Next.js)
 
-Buka terminal baru, masuk ke folder project yang sama:
+Buka terminal baru, masuk ke folder `frontend/` dari root project:
 
 ```bash
-cd pos-kopitiam
+cd pos-kopitiam/frontend
 ```
 
 ### 5a. Install Node Dependencies
@@ -259,13 +301,17 @@ Kamu akan melihat tampilan POS KopiTiam dengan tema **Hijau Sage + Krem Hangat**
 Selalu ikuti urutan ini setiap kali ingin menjalankan project:
 
 ```
-1. docker compose up -d          ← Database (MySQL)
+# Terminal 1 — Database & Backend
+cd pos-kopitiam/backend
+docker compose up -d            ← Database (MySQL)
         ↓ tunggu ~10 detik
-2. go run cmd/api/v1/main.go     ← Backend API (:3400)
-        ↓ buka terminal baru
-3. npm run dev                   ← Frontend Next.js (:3000)
+go run cmd/api/v1/main.go       ← Backend API (:3400)
+
+# Terminal 2 — Frontend
+cd pos-kopitiam/frontend
+npm run dev                     ← Frontend Next.js (:3000)
         ↓
-4. Buka http://localhost:3000
+Buka http://localhost:3000
 ```
 
 > **Tips:** Gunakan tmux, atau buka 3 tab terminal terpisah agar semua proses bisa berjalan bersamaan.
@@ -279,7 +325,8 @@ Selalu ikuti urutan ini setiap kali ingin menjalankan project:
 
 # Stop backend: Ctrl+C di terminal go run
 
-# Stop database
+# Stop database (dari folder backend/)
+cd backend
 docker compose down
 
 # Stop database + hapus data volume (reset total)
@@ -296,9 +343,10 @@ MySQL belum siap. Tunggu 15–20 detik setelah `docker compose up -d`, lalu coba
 
 ### ❌ Error: `Error 1049: Unknown database 'pos_kopitiam'`
 
-Database belum dibuat. Cek file `.env`, pastikan `DB_NAME=pos_kopitiam` dan jalankan ulang:
+Database belum dibuat. Cek file `backend/.env`, pastikan `DB_NAME=pos_kopitiam` dan jalankan ulang:
 
 ```bash
+cd backend
 docker compose down -v
 docker compose up -d
 ```
@@ -321,12 +369,13 @@ taskkill /PID <PID> /F
 
 Pastikan:
 1. Backend berjalan di `:3400` → `curl http://localhost:3400/health`
-2. File `.env` punya `NEXT_PUBLIC_API_URL=http://localhost:3400/api/v1`
-3. Restart `npm run dev` setelah mengubah `.env`
+2. File `frontend/.env.local` punya `NEXT_PUBLIC_API_URL=http://localhost:3400/api/v1`
+3. Restart `npm run dev` setelah mengubah `.env.local`
 
 ### ❌ Error: `go: module not found`
 
 ```bash
+cd backend
 go mod tidy
 go mod download
 ```

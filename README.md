@@ -167,7 +167,7 @@ pos_kopitiam_db_baru/
    ```
 
    **Terminal 5 (Frontend Next.js):**
-   Menjalankan antarmuka pengguna Cashier dan Admin.
+   Menjalankan antarmuka pengguna POS (Point of Sale), Panel Karyawan, Dashboard Analitik, dan Riwayat Global (Akses berdasarkan Role).
    ```bash
    cd fe/frontend
    npm install

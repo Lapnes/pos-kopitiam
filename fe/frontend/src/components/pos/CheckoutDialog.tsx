@@ -4,10 +4,10 @@ import React, { useState } from "react";
 import { useCartStore } from "@/store/useCartStore";
 import { toast } from "sonner";
 import api from "@/lib/api/axios";
+import { AxiosError } from "axios";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -15,36 +15,45 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ShoppingCart, CheckCircle2 } from "lucide-react";
+import {
+  ShoppingCart, CheckCircle2, Banknote, Calculator,
+  Receipt, X, Loader2, ArrowRight,
+} from "lucide-react";
+
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount);
+
+// Seeded Table 1 UUID
+const DEFAULT_TABLE_ID = "91610a61-5f2f-444a-a97f-1f0d6ad185a5";
 
 export function CheckoutDialog({ children }: { children: React.ReactNode }) {
-  const { items, getGrandTotal, clearCart } = useCartStore();
+  const { items, getSubtotal, getTaxAmount, getServiceCharge, getGrandTotal, clearCart } = useCartStore();
   const [open, setOpen] = useState(false);
   const [cashReceived, setCashReceived] = useState<number | "">("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const subtotal = getSubtotal();
+  const taxAmount = getTaxAmount();
+  const serviceCharge = getServiceCharge();
   const grandTotal = getGrandTotal();
   const change = typeof cashReceived === "number" ? cashReceived - grandTotal : 0;
-  const isSubmitDisabled = typeof cashReceived !== "number" || cashReceived < grandTotal;
+  const isEnoughCash = typeof cashReceived === "number" && cashReceived >= grandTotal;
+  const isSubmitDisabled = !isEnoughCash || isSubmitting || items.length === 0;
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const quickAmounts = [
+    Math.ceil(grandTotal / 10000) * 10000,
+    Math.ceil(grandTotal / 50000) * 50000,
+    Math.ceil(grandTotal / 100000) * 100000,
+  ].filter((v, i, arr) => arr.indexOf(v) === i && v >= grandTotal);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitDisabled || isSubmitting) return;
+    if (isSubmitDisabled) return;
 
     setIsSubmitting(true);
     try {
       const payload = {
-        table_id: "91610a61-5f2f-444a-a97f-1f0d6ad185a5", // Hardcoded Table 1 for Phase 4
+        table_id: DEFAULT_TABLE_ID,
         customer_name: "Walk-in Customer",
         customer_phone: "",
         order_type: "dine_in",
@@ -61,90 +70,178 @@ export function CheckoutDialog({ children }: { children: React.ReactNode }) {
 
       await api.post("/orders", payload);
 
-      toast.success("Transaction Successful!", {
-        description: `Change to return: ${formatCurrency(change)}`,
+      toast.success("Transaksi Berhasil!", {
+        description: `Kembalian: ${formatCurrency(change)}`,
         icon: <CheckCircle2 className="w-5 h-5 text-emerald-500" />,
+        duration: 5000,
       });
 
       clearCart();
       setOpen(false);
       setCashReceived("");
-    } catch (error: any) {
-      console.error("CHECKOUT ERROR:", error.response?.data || error.message);
-      toast.error("Checkout Failed", {
-        description: error.response?.data?.message || "Server error while processing order.",
+    } catch (error) {
+      const err = error as AxiosError<{ message: string }>;
+      console.error("CHECKOUT ERROR:", err.response?.data || err.message);
+      toast.error("Checkout Gagal", {
+        description: err.response?.data?.message || "Terjadi error saat memproses pesanan.",
       });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={React.isValidElement(children) ? children : undefined}>
-        {!React.isValidElement(children) ? children : null}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <ShoppingCart className="w-5 h-5 text-emerald-600" />
-            Checkout Validation
-          </DialogTitle>
-          <DialogDescription>
-            Enter the amount of cash received from the customer.
-          </DialogDescription>
-        </DialogHeader>
+  const handleOpenChange = (val: boolean) => {
+    if (!isSubmitting) {
+      setOpen(val);
+      if (!val) setCashReceived("");
+    }
+  };
 
-        <form onSubmit={handleSubmit} className="space-y-6 py-4">
-          <div className="space-y-2">
-            <div className="flex justify-between items-center bg-slate-50 p-4 rounded-lg border border-slate-100">
-              <span className="text-sm font-medium text-slate-500">Grand Total</span>
-              <span className="text-xl font-bold text-slate-800">
-                {formatCurrency(grandTotal)}
-              </span>
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger render={<div onClick={() => items.length > 0 && setOpen(true)}>{children}</div>} />
+      <DialogContent className="sm:max-w-[480px] p-0 gap-0 overflow-hidden rounded-3xl">
+
+        {/* Header */}
+        <div className="bg-emerald-600 px-6 py-5 text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2.5 text-white text-lg font-bold">
+              <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
+                <Receipt className="w-4 h-4" />
+              </div>
+              Konfirmasi Pembayaran
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-emerald-100 text-sm mt-1">Masukkan jumlah uang yang diterima dari pelanggan.</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {/* Order summary */}
+          <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-2">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Ringkasan Pesanan</p>
+
+            <div className="max-h-28 overflow-y-auto space-y-1.5 pr-1">
+              {items.map((item) => (
+                <div key={item.cartItemId} className="flex justify-between items-center text-xs">
+                  <span className="text-slate-600">
+                    {item.name} <span className="text-slate-400">×{item.quantity}</span>
+                  </span>
+                  <span className="font-semibold text-slate-700">
+                    {formatCurrency(item.price * item.quantity)}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t border-slate-200 pt-2 mt-2 space-y-1">
+              <div className="flex justify-between text-xs text-slate-500">
+                <span>Subtotal</span><span>{formatCurrency(subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-slate-500">
+                <span>Pajak (11%)</span><span>{formatCurrency(taxAmount)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-slate-500">
+                <span>Service (5%)</span><span>{formatCurrency(serviceCharge)}</span>
+              </div>
+            </div>
+
+            <div className="border-t-2 border-dashed border-slate-300 pt-3 flex justify-between items-center">
+              <span className="font-bold text-slate-800">Total Bayar</span>
+              <span className="text-2xl font-black text-emerald-600">{formatCurrency(grandTotal)}</span>
             </div>
           </div>
 
+          {/* Cash input */}
           <div className="space-y-3">
-            <Label htmlFor="cashReceived" className="text-slate-700">
-              Cash Received (Nominal Pembayaran)
+            <Label htmlFor="cashReceived" className="text-slate-700 font-semibold flex items-center gap-2">
+              <Banknote className="w-4 h-4 text-emerald-600" />
+              Nominal Pembayaran
             </Label>
             <Input
               id="cashReceived"
               type="number"
-              placeholder="e.g. 100000"
+              placeholder="Masukkan jumlah uang..."
               value={cashReceived}
               onChange={(e) => setCashReceived(e.target.value ? Number(e.target.value) : "")}
-              className="text-lg font-medium h-12"
+              className="text-lg font-bold h-13 rounded-xl border-slate-200 focus:border-emerald-400 focus:ring-emerald-400/20"
               autoFocus
+              min={0}
             />
+
+            {/* Quick amounts */}
+            {quickAmounts.length > 0 && (
+              <div className="flex gap-2 flex-wrap">
+                {quickAmounts.slice(0, 3).map((amount) => (
+                  <button
+                    key={amount}
+                    type="button"
+                    onClick={() => setCashReceived(amount)}
+                    className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl border transition-all ${
+                      cashReceived === amount
+                        ? "bg-emerald-500 text-white border-emerald-500"
+                        : "bg-white text-slate-700 border-slate-200 hover:border-emerald-300 hover:text-emerald-700"
+                    }`}
+                  >
+                    {formatCurrency(amount)}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          <div className="space-y-2">
-            <div className={`flex justify-between items-center p-4 rounded-lg border ${change >= 0 ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
-              <span className={`text-sm font-medium ${change >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                Change (Kembalian)
-              </span>
-              <span className={`text-xl font-bold ${change >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                {change >= 0 ? formatCurrency(change) : "-"}
+          {/* Change display */}
+          <div className={`flex justify-between items-center p-4 rounded-2xl border-2 transition-all ${
+            typeof cashReceived !== "number"
+              ? "bg-slate-50 border-slate-200"
+              : isEnoughCash
+              ? "bg-emerald-50 border-emerald-200"
+              : "bg-red-50 border-red-200"
+          }`}>
+            <div className="flex items-center gap-2">
+              <Calculator className={`w-5 h-5 ${
+                typeof cashReceived !== "number" ? "text-slate-400" : isEnoughCash ? "text-emerald-600" : "text-red-500"
+              }`} />
+              <span className={`font-semibold text-sm ${
+                typeof cashReceived !== "number" ? "text-slate-500" : isEnoughCash ? "text-emerald-700" : "text-red-600"
+              }`}>
+                Kembalian
               </span>
             </div>
+            <span className={`text-2xl font-black ${
+              typeof cashReceived !== "number" ? "text-slate-400" : isEnoughCash ? "text-emerald-700" : "text-red-600"
+            }`}>
+              {typeof cashReceived !== "number"
+                ? "—"
+                : isEnoughCash
+                ? formatCurrency(change)
+                : "Kurang " + formatCurrency(Math.abs(change))}
+            </span>
           </div>
 
-          <DialogFooter className="pt-2">
+          {/* Actions */}
+          <DialogFooter className="gap-2 pt-1">
             <button
               type="button"
-              onClick={() => setOpen(false)}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors"
+              onClick={() => handleOpenChange(false)}
+              disabled={isSubmitting}
+              className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              Cancel
+              <X className="w-4 h-4" />
+              Batal
             </button>
             <button
               type="submit"
               disabled={isSubmitDisabled}
-              className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-bold transition-all shadow-sm active:scale-95"
+              className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded-xl font-bold transition-all shadow-md shadow-emerald-200 active:scale-[0.98] flex items-center justify-center gap-2"
             >
-              Confirm Payment
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  Konfirmasi
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </DialogFooter>
         </form>

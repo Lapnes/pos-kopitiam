@@ -47,6 +47,7 @@ const (
 	OrderServed    OrderStatus = "served"
 	OrderPaid      OrderStatus = "paid"
 	OrderCancelled OrderStatus = "cancelled"
+	OrderRefunded  OrderStatus = "refunded"
 )
 
 type KDSStatus string

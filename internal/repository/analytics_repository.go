@@ -8,7 +8,7 @@ import (
 )
 
 type AnalyticsRepository interface {
-	GetSalesSummary(startDate, endDate time.Time) (grossRevenue float64, netRevenue float64, totalRefunded float64, err error)
+	GetSalesSummary(startDate, endDate time.Time) (grossRevenue float64, netRevenue float64, totalRefunded float64, totalTransactions int, err error)
 	GetBestSellers(limit int) ([]BestSellerResult, error)
 	GetReturnImpact() ([]ReturnImpactResult, error)
 }
@@ -34,16 +34,25 @@ type ReturnImpactResult struct {
 	TotalRefunded float64 `json:"total_refunded"`
 }
 
-func (r *analyticsRepository) GetSalesSummary(startDate, endDate time.Time) (float64, float64, float64, error) {
+func (r *analyticsRepository) GetSalesSummary(startDate, endDate time.Time) (float64, float64, float64, int, error) {
 	var grossRevenue, totalRefunded float64
+	var totalOrders int64
 
 	// Sum Gross Revenue from completed/paid orders
 	err := r.db.Model(&models.Order{}).
-		Where("status = ? AND created_at BETWEEN ? AND ? AND deleted_at IS NULL", models.OrderPaid, startDate, endDate).
+		Where("status = ? AND created_at BETWEEN ? AND ? AND deleted_at IS NULL", models.OrderConfirmed, startDate, endDate).
 		Select("COALESCE(SUM(total), 0)").
 		Row().Scan(&grossRevenue)
 	if err != nil {
-		return 0, 0, 0, err
+		return 0, 0, 0, 0, err
+	}
+
+	// Count total transactions
+	err = r.db.Model(&models.Order{}).
+		Where("status = ? AND created_at BETWEEN ? AND ? AND deleted_at IS NULL", models.OrderConfirmed, startDate, endDate).
+		Count(&totalOrders).Error
+	if err != nil {
+		return 0, 0, 0, 0, err
 	}
 
 	// Sum Total Refunded from order_returns within the timeframe
@@ -52,12 +61,12 @@ func (r *analyticsRepository) GetSalesSummary(startDate, endDate time.Time) (flo
 		Select("COALESCE(SUM(return_amount), 0)").
 		Row().Scan(&totalRefunded)
 	if err != nil {
-		return 0, 0, 0, err
+		return 0, 0, 0, 0, err
 	}
 
 	netRevenue := grossRevenue - totalRefunded
 
-	return grossRevenue, netRevenue, totalRefunded, nil
+	return grossRevenue, netRevenue, totalRefunded, int(totalOrders), nil
 }
 
 func (r *analyticsRepository) GetBestSellers(limit int) ([]BestSellerResult, error) {

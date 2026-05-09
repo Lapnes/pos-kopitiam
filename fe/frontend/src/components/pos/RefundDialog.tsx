@@ -39,7 +39,7 @@ export function RefundDialog({
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const maxRefund = totalAmount * 0.8;
+  const maxRefund = totalAmount;
   const isOverLimit = typeof returnAmount === "number" && returnAmount > maxRefund;
   const isUnderMin = typeof returnAmount === "number" && returnAmount <= 0;
   const isSubmitDisabled =
@@ -105,18 +105,17 @@ export function RefundDialog({
         </div>
 
         <form onSubmit={handleRefundSubmit} className="p-6 space-y-5">
-          {/* 80% rule warning */}
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3 items-start">
             <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
             <div className="text-sm text-amber-800">
-              <p className="font-bold mb-1">Aturan Refund Maksimal 80%</p>
+              <p className="font-bold mb-1">Informasi Refund</p>
               <div className="space-y-0.5 text-xs">
                 <div className="flex justify-between">
                   <span>Total Order:</span>
                   <span className="font-bold">{formatCurrency(totalAmount)}</span>
                 </div>
                 <div className="flex justify-between text-amber-700">
-                  <span>Maks. Refund (80%):</span>
+                  <span>Maks. Refund:</span>
                   <span className="font-bold">{formatCurrency(maxRefund)}</span>
                 </div>
               </div>

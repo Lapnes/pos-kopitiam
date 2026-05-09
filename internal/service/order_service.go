@@ -17,6 +17,7 @@ type OrderService interface {
 	CreateOrder(req dto.CreateOrderRequest, userID string, branchID string) (*models.Order, error)
 	GetOrders() ([]models.Order, error)
 	GetOrder(id string) (*models.Order, error)
+	GetOrderByNumber(orderNumber string) (*models.Order, error)
 	ConfirmOrder(orderID string) (*models.Order, error)
 }
 
@@ -107,6 +108,10 @@ func (s *orderService) GetOrders() ([]models.Order, error) {
 
 func (s *orderService) GetOrder(id string) (*models.Order, error) {
 	return s.orderRepo.FindByID(id)
+}
+
+func (s *orderService) GetOrderByNumber(orderNumber string) (*models.Order, error) {
+	return s.orderRepo.FindByOrderNumber(orderNumber)
 }
 
 func (s *orderService) ConfirmOrder(orderID string) (*models.Order, error) {

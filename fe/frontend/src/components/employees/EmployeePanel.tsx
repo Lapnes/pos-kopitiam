@@ -88,24 +88,24 @@ export function EmployeePanel() {
         </div>
       )}
 
-      {/* Error / API not implemented */}
+      {/* Error state */}
       {!isLoading && error && (
         <div className="flex flex-col items-center justify-center h-64 gap-4 text-center">
-          <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center">
-            <AlertCircle className="w-8 h-8 text-amber-400" />
+          <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center">
+            <AlertCircle className="w-8 h-8 text-red-400" />
           </div>
           <div>
-            <p className="text-sm font-bold text-slate-700">Endpoint karyawan belum tersedia</p>
+            <p className="text-sm font-bold text-slate-700">Gagal memuat data karyawan</p>
             <p className="text-xs text-slate-400 mt-1 max-w-xs">
-              Backend belum mengimplementasi route <code className="bg-slate-100 px-1 rounded">/api/v1/employees</code>.
-              Data di bawah menggunakan data benih (seed) untuk tampilan demo.
+              Terjadi kesalahan saat mengambil data dari server.
             </p>
           </div>
-          {/* Fallback: show seeded data */}
-          <EmployeeFallbackTable
-            onEdit={setEditTarget}
-            onDelete={setDeleteTarget}
-          />
+          <button
+            onClick={() => qc.invalidateQueries({ queryKey: ["employees"] })}
+            className="text-xs font-semibold text-violet-600 hover:text-violet-700 mt-2"
+          >
+            Coba Lagi
+          </button>
         </div>
       )}
 
@@ -234,24 +234,3 @@ function EmployeeTable({
   );
 }
 
-// Seeded fallback data for demo when API is not available
-const SEEDED_EMPLOYEES: Employee[] = [
-  { id: "1", branch_id: "1", name: "Super Admin", email: "admin@kopitiam.com", role: "superadmin" },
-  { id: "2", branch_id: "1", name: "Manager", email: "manager@kopitiam.com", role: "manager" },
-  { id: "3", branch_id: "1", name: "Cashier 1", email: "cashier1@kopitiam.com", role: "cashier" },
-  { id: "4", branch_id: "1", name: "Kitchen 1", email: "kitchen1@kopitiam.com", role: "kitchen" },
-];
-
-function EmployeeFallbackTable({
-  onEdit, onDelete,
-}: {
-  onEdit: (e: Employee) => void;
-  onDelete: (e: Employee) => void;
-}) {
-  return (
-    <div className="w-full mt-4">
-      <p className="text-[11px] text-amber-600 font-semibold mb-2 text-center">⚠ Data demo (seed) — bukan data live</p>
-      <EmployeeTable employees={SEEDED_EMPLOYEES} onEdit={onEdit} onDelete={onDelete} />
-    </div>
-  );
-}

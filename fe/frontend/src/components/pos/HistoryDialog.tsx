@@ -50,12 +50,14 @@ const StatusBadge = ({ status }: { status: string }) => {
     pending: "bg-amber-100 text-amber-700 border-amber-200",
     confirmed: "bg-emerald-100 text-emerald-700 border-emerald-200",
     cancelled: "bg-red-100 text-red-700 border-red-200",
+    refunded: "bg-orange-100 text-orange-700 border-orange-200",
     void: "bg-slate-100 text-slate-500 border-slate-200",
   };
   const labels: Record<string, string> = {
     pending: "Pending",
     confirmed: "Selesai",
     cancelled: "Dibatalkan",
+    refunded: "Refund",
     void: "Void",
   };
   const style = styles[status] || "bg-slate-100 text-slate-600 border-slate-200";
@@ -204,13 +206,11 @@ export function HistoryDialog({ open, onOpenChange }: HistoryDialogProps) {
                         <TableCell className="text-center pr-6" onClick={(e) => e.stopPropagation()}>
                           <button
                             onClick={() => setRefundOrder(order)}
-                            disabled={order.status !== "confirmed" || order.has_returns}
+                            disabled={order.status !== "confirmed"}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-xs font-bold transition-colors border border-rose-100"
                             title={
                               order.status !== "confirmed"
                                 ? "Hanya order yang selesai yang bisa direfund"
-                                : order.has_returns
-                                ? "Order ini sudah direfund"
                                 : "Proses refund"
                             }
                           >

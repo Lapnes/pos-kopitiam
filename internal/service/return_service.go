@@ -6,6 +6,7 @@ import (
 	"github.com/Lapnes/pos-kopitiam/internal/models"
 	"github.com/Lapnes/pos-kopitiam/internal/repository"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type ReturnService interface {
@@ -13,12 +14,14 @@ type ReturnService interface {
 }
 
 type returnService struct {
+	db         *gorm.DB
 	returnRepo repository.ReturnRepository
 	orderRepo  repository.OrderRepository
 }
 
-func NewReturnService(returnRepo repository.ReturnRepository, orderRepo repository.OrderRepository) ReturnService {
+func NewReturnService(db *gorm.DB, returnRepo repository.ReturnRepository, orderRepo repository.OrderRepository) ReturnService {
 	return &returnService{
+		db:         db,
 		returnRepo: returnRepo,
 		orderRepo:  orderRepo,
 	}
@@ -30,12 +33,21 @@ func (s *returnService) ProcessReturn(orderID, processedBy uuid.UUID, returnAmou
 		return nil, errors.New("order not found: " + err.Error())
 	}
 
-	// Rule: Maximum returnable amount is 80% of the total price.
-	maxAllowedReturn := order.Total * 0.80
-
-	if returnAmount > maxAllowedReturn {
-		return nil, errors.New("return amount exceeds the maximum 80% limit")
+	if returnAmount > order.Total {
+		return nil, errors.New("return amount exceeds the order total")
 	}
+
+	tx := s.db.Begin()
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	success := false
+	defer func() {
+		if !success {
+			tx.Rollback()
+		}
+	}()
 
 	orderReturn := &models.OrderReturn{
 		OrderID:        orderID,
@@ -45,16 +57,27 @@ func (s *returnService) ProcessReturn(orderID, processedBy uuid.UUID, returnAmou
 		ReturnAmount:   returnAmount,
 	}
 
-	// Save the return record
-	if err := s.returnRepo.Create(orderReturn); err != nil {
-		return nil, errors.New("failed to process return: " + err.Error())
+	if err := tx.Create(orderReturn).Error; err != nil {
+		return nil, errors.New("failed to save return record: " + err.Error())
 	}
 
-	// Flag the order as having returns
+	order.Status = models.OrderRefunded
 	order.HasReturns = true
-	if err := s.orderRepo.Update(order); err != nil {
-		return nil, errors.New("return processed but failed to update order flag: " + err.Error())
+	if err := tx.Save(order).Error; err != nil {
+		return nil, errors.New("failed to update order status: " + err.Error())
 	}
+
+	// Restore stock
+	for _, detail := range order.OrderDetails {
+		var menu models.Menu
+		if err := tx.Where("id = ?", detail.MenuID).First(&menu).Error; err == nil {
+			menu.DailyStock += detail.Quantity
+			tx.Save(&menu)
+		}
+	}
+
+	success = true
+	tx.Commit()
 
 	return orderReturn, nil
 }

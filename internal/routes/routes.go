@@ -27,11 +27,12 @@ func InitRoutes(router *gin.Engine, db *gorm.DB, redisClient *redis.Client, cfg 
 	authService := service.NewAuthService(userRepo, cfg)
 	orderService := service.NewOrderService(db, orderRepo, inventoryRepo, redisClient)
 	shiftService := service.NewShiftService(shiftRepo)
-	returnService := service.NewReturnService(returnRepo, orderRepo)
+	returnService := service.NewReturnService(db, returnRepo, orderRepo)
 	inventoryService := service.NewInventoryService(inventoryRepo)
 	analyticsService := service.NewAnalyticsService(analyticsRepo)
 	printerService := service.NewPrinterService(orderRepo, userRepo)
 	menuService := service.NewMenuService(menuRepo)
+	employeeService := service.NewEmployeeService(userRepo)
 	
 	// Handlers
 	authHandler := handler.NewAuthHandler(authService)
@@ -42,6 +43,7 @@ func InitRoutes(router *gin.Engine, db *gorm.DB, redisClient *redis.Client, cfg 
 	analyticsHandler := handler.NewAnalyticsHandler(analyticsService)
 	printerHandler := handler.NewPrinterHandler(printerService)
 	menuHandler := handler.NewMenuHandler(menuService)
+	employeeHandler := handler.NewEmployeeHandler(employeeService)
 
 	// Health Check
 	router.GET("/health", func(c *gin.Context) {
@@ -86,7 +88,12 @@ func InitRoutes(router *gin.Engine, db *gorm.DB, redisClient *redis.Client, cfg 
 		managerRoutes.Use(middleware.RoleMiddleware("superadmin", "manager"))
 		managerRoutes.POST("/:id/void-item", orderHandler.VoidItem)
 		managerRoutes.POST("/:id/void", orderHandler.VoidOrder)
-		managerRoutes.POST("/:id/returns", returnHandler.ProcessReturn)
+
+		// Cashier allowed routes (returns and lookup)
+		cashierRoutes := orders.Group("/")
+		cashierRoutes.Use(middleware.RoleMiddleware("superadmin", "manager", "cashier"))
+		cashierRoutes.POST("/:id/returns", returnHandler.ProcessReturn)
+		cashierRoutes.GET("/by-number/:number", orderHandler.GetOrderByNumber)
 	}
 
 	// Shifts
@@ -111,6 +118,16 @@ func InitRoutes(router *gin.Engine, db *gorm.DB, redisClient *redis.Client, cfg 
 		master.PUT("/recipes/:id", inventoryHandler.UpdateRecipe)
 		master.GET("/recipes/:menu_id", inventoryHandler.GetRecipe)
 		master.DELETE("/recipes/:id", inventoryHandler.DeleteRecipe)
+	}
+
+	// Employees
+	employees := protected.Group("/employees")
+	employees.Use(middleware.RoleMiddleware("superadmin", "manager"))
+	{
+		employees.GET("", employeeHandler.GetEmployees)
+		employees.POST("", employeeHandler.CreateEmployee)
+		employees.PUT("/:id", employeeHandler.UpdateEmployee)
+		employees.DELETE("/:id", employeeHandler.DeleteEmployee)
 	}
 
 	// Analytics

@@ -9,6 +9,10 @@ type UserRepository interface {
 	FindByEmail(email string) (*models.Employee, error)
 	FindByPIN(pin string) (*models.Employee, error)
 	FindByID(id string) (*models.Employee, error)
+	FindAll() ([]models.Employee, error)
+	Create(user *models.Employee) error
+	Update(user *models.Employee) error
+	Delete(id string) error
 }
 
 type UserRepo struct {
@@ -44,4 +48,22 @@ func (r *UserRepo) FindByID(id string) (*models.Employee, error) {
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (r *UserRepo) FindAll() ([]models.Employee, error) {
+	var users []models.Employee
+	err := r.db.Find(&users).Error
+	return users, err
+}
+
+func (r *UserRepo) Create(user *models.Employee) error {
+	return r.db.Create(user).Error
+}
+
+func (r *UserRepo) Update(user *models.Employee) error {
+	return r.db.Save(user).Error
+}
+
+func (r *UserRepo) Delete(id string) error {
+	return r.db.Delete(&models.Employee{}, "id = ?", id).Error
 }

@@ -10,7 +10,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -98,8 +97,11 @@ export function CheckoutDialog({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<div onClick={() => items.length > 0 && setOpen(true)}>{children}</div>} />
+    <>
+      <div onClick={() => items.length > 0 && setOpen(true)}>
+        {children}
+      </div>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[480px] p-0 gap-0 overflow-hidden rounded-3xl">
 
         {/* Header */}
@@ -246,6 +248,7 @@ export function CheckoutDialog({ children }: { children: React.ReactNode }) {
           </DialogFooter>
         </form>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+    </>
   );
 }

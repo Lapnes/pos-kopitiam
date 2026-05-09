@@ -55,13 +55,38 @@ func main() {
 	}
 
 	// Create Categories
-	category := models.Category{Name: "Makanan", Station: models.StationKitchen}
-	db.FirstOrCreate(&category, models.Category{Name: "Makanan"})
+	categoriesData := []struct {
+		Name    string
+		Station models.Station
+	}{
+		{"Coffee", models.StationBar},
+		{"Tea", models.StationBar},
+		{"Food", models.StationKitchen},
+		{"Cold Beverages", models.StationBar},
+		{"Snacks", models.StationKitchen},
+		{"Desserts", models.StationKitchen},
+		{"Juices", models.StationBar},
+	}
 
-	// Create Menus
+	categoriesMap := make(map[string]models.Category)
+	for _, c := range categoriesData {
+		cat := models.Category{Name: c.Name, Station: c.Station}
+		db.FirstOrCreate(&cat, models.Category{Name: c.Name})
+		categoriesMap[c.Name] = cat
+	}
+
+	// Create Menus based on pos_kopitiam_full.sql
 	menus := []models.Menu{
-		{CategoryID: category.ID, Name: "Nasi Goreng Spesial", Price: 35000, CostPrice: 20000, DailyStock: 50, Station: models.StationKitchen},
-		{CategoryID: category.ID, Name: "Mie Goreng", Price: 30000, CostPrice: 15000, DailyStock: 50, Station: models.StationKitchen},
+		{CategoryID: categoriesMap["Coffee"].ID, Name: "Milk Coffee", Price: 18000, CostPrice: 10000, DailyStock: 48, IsActive: true, Station: models.StationBar},
+		{CategoryID: categoriesMap["Coffee"].ID, Name: "Black Coffee", Price: 15000, CostPrice: 8000, DailyStock: 50, IsActive: true, Station: models.StationBar},
+		{CategoryID: categoriesMap["Tea"].ID, Name: "Pulled Tea", Price: 15000, CostPrice: 8000, DailyStock: 39, IsActive: true, Station: models.StationBar},
+		{CategoryID: categoriesMap["Tea"].ID, Name: "Plain Tea", Price: 8000, CostPrice: 4000, DailyStock: 40, IsActive: true, Station: models.StationBar},
+		{CategoryID: categoriesMap["Food"].ID, Name: "Fried Rice", Price: 35000, CostPrice: 20000, DailyStock: 20, IsActive: true, Station: models.StationKitchen},
+		{CategoryID: categoriesMap["Food"].ID, Name: "Fried Noodles", Price: 30000, CostPrice: 15000, DailyStock: 20, IsActive: true, Station: models.StationKitchen},
+		{CategoryID: categoriesMap["Cold Beverages"].ID, Name: "Iced Milk Coffee", Price: 20000, CostPrice: 12000, DailyStock: 30, IsActive: true, Station: models.StationBar},
+		{CategoryID: categoriesMap["Snacks"].ID, Name: "French Fries", Price: 18000, CostPrice: 10000, DailyStock: 25, IsActive: true, Station: models.StationKitchen},
+		{CategoryID: categoriesMap["Desserts"].ID, Name: "Chocolate Pudding", Price: 15000, CostPrice: 8000, DailyStock: 15, IsActive: true, Station: models.StationKitchen},
+		{CategoryID: categoriesMap["Juices"].ID, Name: "Avocado Juice", Price: 22000, CostPrice: 12000, DailyStock: 20, IsActive: true, Station: models.StationBar},
 	}
 	for _, menu := range menus {
 		db.FirstOrCreate(&menu, models.Menu{Name: menu.Name})

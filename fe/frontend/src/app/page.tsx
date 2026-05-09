@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCartStore } from "@/store/useCartStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { Menu } from "@/types";
@@ -10,10 +10,11 @@ import {
   Minus, Trash2, ShoppingCart, Coffee,
   UserCircle, LogOut, History, Loader2,
   ChefHat, Package, Search, Receipt,
-  LayoutGrid, Users, BarChart2, ClipboardList,
+  LayoutGrid, Users, BarChart2, ClipboardList, RotateCcw,
 } from "lucide-react";
 import { CheckoutDialog } from "@/components/pos/CheckoutDialog";
 import { HistoryDialog } from "@/components/pos/HistoryDialog";
+import { RefundByOrderNumberDialog } from "@/components/pos/RefundByOrderNumberDialog";
 import { MenuCard } from "@/components/pos/MenuCard";
 import { DailyMetrics } from "@/components/pos/DailyMetrics";
 import { EmployeePanel } from "@/components/employees/EmployeePanel";
@@ -63,6 +64,7 @@ const NAV_TABS: NavTab[] = [
 
 export default function CashierPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user, isAuthenticated, logout } = useAuthStore();
   const {
     items, addItem, updateQuantity, removeItem,
@@ -70,7 +72,8 @@ export default function CashierPage() {
   } = useCartStore();
 
   const [activeView, setActiveView] = useState<View>("pos");
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [isHistoryOpen, setHistoryOpen] = useState(false);
+  const [isRefundOpen, setRefundOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -128,7 +131,7 @@ export default function CashierPage() {
             {visibleTabs.map((tab) => {
               const Icon = tab.Icon;
               const isActive = activeView === tab.id ||
-                (tab.id === "history" && historyOpen);
+                (tab.id === "history" && isHistoryOpen);
               return (
                 <button
                   key={tab.id}
@@ -167,6 +170,17 @@ export default function CashierPage() {
                 className="w-full pl-9 pr-4 py-2 text-sm bg-slate-100 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 placeholder:text-slate-400"
               />
             </div>
+          )}
+
+          {/* Refund shortcut for cashier */}
+          {activeView === "pos" && (
+            <button
+              onClick={() => setRefundOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-sm font-semibold transition-colors border border-rose-100"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span className="hidden sm:inline">Refund</span>
+            </button>
           )}
 
           {/* History shortcut for cashier */}
@@ -394,7 +408,18 @@ export default function CashierPage() {
       </main>
 
       {/* History Dialog */}
-      <HistoryDialog open={historyOpen} onOpenChange={setHistoryOpen} />
+      <HistoryDialog open={isHistoryOpen} onOpenChange={setHistoryOpen} />
+
+      {/* Refund Dialog */}
+      <RefundByOrderNumberDialog 
+        open={isRefundOpen} 
+        onOpenChange={setRefundOpen} 
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["daily-metrics"] });
+          queryClient.invalidateQueries({ queryKey: ["menus"] });
+          queryClient.invalidateQueries({ queryKey: ["orders"] });
+        }}
+      />
     </div>
   );
 }

@@ -21,17 +21,19 @@ func NewAnalyticsService(analyticsRepo repository.AnalyticsRepository) Analytics
 }
 
 func (s *analyticsService) GetSalesSummary(startDate, endDate time.Time) (map[string]interface{}, error) {
-	gross, net, refunded, err := s.analyticsRepo.GetSalesSummary(startDate, endDate)
+	gross, net, refunded, transactions, err := s.analyticsRepo.GetSalesSummary(startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
 
 	return map[string]interface{}{
-		"start_date":     startDate.Format(time.RFC3339),
-		"end_date":       endDate.Format(time.RFC3339),
-		"gross_revenue":  gross,
-		"net_revenue":    net,
-		"total_refunded": refunded,
+		"start_date":         startDate.Format(time.RFC3339),
+		"end_date":           endDate.Format(time.RFC3339),
+		"gross_revenue":      gross,
+		"net_revenue":        net,
+		"total_revenue":      net,
+		"total_refunded":     refunded,
+		"total_transactions": transactions,
 	}, nil
 }
 

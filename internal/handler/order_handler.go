@@ -56,6 +56,17 @@ func (h *OrderHandler) GetOrder(c *gin.Context) {
 	c.JSON(http.StatusOK, utils.SuccessResponse("Order details", order, nil))
 }
 
+func (h *OrderHandler) GetOrderByNumber(c *gin.Context) {
+	number := c.Param("number")
+	order, err := h.orderService.GetOrderByNumber(number)
+	if err != nil {
+		c.JSON(http.StatusNotFound, utils.ErrorResponse("Order not found", "NOT_FOUND", err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.SuccessResponse("Order details", order, nil))
+}
+
 func (h *OrderHandler) UpdateOrder(c *gin.Context) {
 	c.JSON(http.StatusOK, utils.SuccessResponse("Order updated", nil, nil))
 }

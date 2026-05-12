@@ -142,7 +142,7 @@ func (s *orderService) ConfirmOrder(orderID string) (*models.Order, error) {
 		var recipe models.Recipe
 		err := tx.Preload("Ingredients").Where("menu_id = ?", detail.MenuID).First(&recipe).Error
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("failed to fetch recipe for menu: " + detail.MenuName)
+			return nil, fmt.Errorf("failed to fetch recipe for menu %s: %w", detail.MenuName, err)
 		}
 
 		if err == nil {

@@ -86,7 +86,7 @@ export function AnalyticsDashboard() {
   const { data: summary, isLoading: loadingSummary } = useQuery<AnalyticsSummary>({
     queryKey: ["analytics-summary", period],
     queryFn: async () => {
-      const res = await api.get("/analytics/sales-summary", { params: range });
+      const res = await api.get("/api/v1/analytics/sales-summary", { params: range });
       return res.data.data as AnalyticsSummary;
     },
     staleTime: 2 * 60 * 1000,
@@ -97,7 +97,7 @@ export function AnalyticsDashboard() {
   const { data: bestSellers } = useQuery<BestSeller[]>({
     queryKey: ["best-sellers", period],
     queryFn: async () => {
-      const res = await api.get("/analytics/best-sellers", { params: range });
+      const res = await api.get("/api/v1/analytics/best-sellers", { params: range });
       return (res.data.data ?? res.data) as BestSeller[];
     },
     retry: 1,
@@ -107,7 +107,7 @@ export function AnalyticsDashboard() {
   const { data: returnImpact } = useQuery<ReturnImpact>({
     queryKey: ["return-impact", period],
     queryFn: async () => {
-      const res = await api.get("/analytics/return-impact", { params: range });
+      const res = await api.get("/api/v1/analytics/return-impact", { params: range });
       return res.data.data as ReturnImpact;
     },
     retry: 1,

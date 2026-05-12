@@ -55,7 +55,7 @@ export function RefundDialog({
 
     setIsSubmitting(true);
     try {
-      await api.post(`/orders/${orderId}/returns`, {
+      await api.post(`/api/v1/orders/${orderId}/returns`, {
         return_amount: returnAmount,
         reason: reason,
       });

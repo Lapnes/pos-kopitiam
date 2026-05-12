@@ -36,7 +36,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, onSuccess }: 
 
   const mutation = useMutation({
     mutationFn: () =>
-      api.put(`/employees/${employee.id}`, {
+      api.put(`/api/v1/employees/${employee.id}`, {
         name,
         email,
         role,

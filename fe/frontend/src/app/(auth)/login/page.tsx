@@ -39,7 +39,7 @@ export default function LoginPage() {
     }
     setIsLoadingCashier(true);
     try {
-      const response = await api.post("/auth/login-pin", { pin });
+      const response = await api.post("/api/v1/auth/login-pin", { pin });
       const { user: userData, access_token } = response.data.data;
       setAuth(userData, access_token);
       toast.success("Login berhasil!", { description: `Selamat datang, ${userData.name}!` });
@@ -63,7 +63,7 @@ export default function LoginPage() {
     }
     setIsLoadingAdmin(true);
     try {
-      const response = await api.post("/auth/login", { email, password });
+      const response = await api.post("/api/v1/auth/login", { email, password });
       const { user: userData, access_token } = response.data.data;
       setAuth(userData, access_token);
       toast.success("Login Admin berhasil!", { description: "Mengarahkan ke dashboard..." });

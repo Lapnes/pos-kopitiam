@@ -75,7 +75,7 @@ export function HistoryDialog({ open, onOpenChange }: HistoryDialogProps) {
   const { data: orders, isLoading, error, refetch } = useQuery({
     queryKey: ["orders"],
     queryFn: async () => {
-      const response = await api.get("/orders");
+      const response = await api.get("/api/v1/orders");
       return response.data.data as Order[];
     },
     enabled: open,

@@ -34,7 +34,7 @@ export function RefundByOrderNumberDialog({ open, onOpenChange, onSuccess }: Pro
 
     setIsLoading(true);
     try {
-      const res = await api.get(`/orders/by-number/${orderNumber.trim()}`);
+      const res = await api.get(`/api/v1/orders/by-number/${orderNumber.trim()}`);
       const order = res.data.data as Order;
 
       if (order.status !== "confirmed") {

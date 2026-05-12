@@ -72,7 +72,13 @@ func (h *OrderHandler) UpdateOrder(c *gin.Context) {
 }
 
 func (h *OrderHandler) ConfirmOrder(c *gin.Context) {
-	c.JSON(http.StatusOK, utils.SuccessResponse("Order confirmed", nil, nil))
+	id := c.Param("id")
+	order, err := h.orderService.ConfirmOrder(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to confirm order", "INTERNAL_ERROR", err.Error()))
+		return
+	}
+	c.JSON(http.StatusOK, utils.SuccessResponse("Order confirmed", order, nil))
 }
 
 func (h *OrderHandler) CancelOrder(c *gin.Context) {

@@ -39,14 +39,14 @@ export function EmployeePanel() {
   const { data: employees, isLoading, error } = useQuery<Employee[]>({
     queryKey: ["employees"],
     queryFn: async () => {
-      const res = await api.get("/employees");
+      const res = await api.get("/api/v1/employees");
       return (res.data.data ?? res.data) as Employee[];
     },
     retry: 1,
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/employees/${id}`),
+    mutationFn: (id: string) => api.delete(`/api/v1/employees/${id}`),
     onSuccess: () => {
       toast.success("Karyawan berhasil dihapus");
       qc.invalidateQueries({ queryKey: ["employees"] });

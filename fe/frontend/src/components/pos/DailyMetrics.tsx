@@ -22,7 +22,7 @@ export function DailyMetrics() {
   const { data, isLoading } = useQuery<AnalyticsSummary>({
     queryKey: ["daily-metrics", start],
     queryFn: async () => {
-      const res = await api.get("/analytics/sales-summary", {
+      const res = await api.get("/api/v1/analytics/sales-summary", {
         params: { start_date: start, end_date: end },
       });
       return res.data.data as AnalyticsSummary;

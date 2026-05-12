@@ -67,7 +67,7 @@ export function CheckoutDialog({ children }: { children: React.ReactNode }) {
         })),
       };
 
-      await api.post("/orders", payload);
+      await api.post("/api/v1/orders", payload);
 
       toast.success("Transaksi Berhasil!", {
         description: `Kembalian: ${formatCurrency(change)}`,

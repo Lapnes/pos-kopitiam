@@ -10,6 +10,12 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ppassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   redis:
     image: redis:7-alpine
@@ -19,7 +25,23 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
 volumes:
   mysql_data:
   redis_data:
+
+# ─────────────────────────────────────────────────────────────
+# CATATAN JALANKAN LOKAL (tanpa containerize backend/frontend):
+#
+#   1. docker compose up -d          ← MySQL + Redis
+#   2. go run cmd/api/main.go        ← Backend di host:8080
+#   3. cd fe/frontend && npm run dev ← Frontend di host:3000
+#
+# Jika ingin containerize backend + frontend juga, tambahkan
+# service backend dan frontend di bawah dengan network: pos_net
+# ─────────────────────────────────────────────────────────────

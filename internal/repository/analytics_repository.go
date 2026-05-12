@@ -22,15 +22,15 @@ func NewAnalyticsRepository(db *gorm.DB) AnalyticsRepository {
 }
 
 type BestSellerResult struct {
-	MenuID    string  `json:"menu_id"`
-	MenuName  string  `json:"menu_name"`
-	TotalQty  int     `json:"total_quantity"`
+	MenuID     string  `json:"menu_id"`
+	MenuName   string  `json:"menu_name"`
+	TotalQty   int     `json:"total_quantity"`
 	TotalSales float64 `json:"total_sales"`
 }
 
 type ReturnImpactResult struct {
-	Reason       string  `json:"reason"`
-	ReturnCount  int     `json:"return_count"`
+	Reason        string  `json:"reason"`
+	ReturnCount   int     `json:"return_count"`
 	TotalRefunded float64 `json:"total_refunded"`
 }
 
@@ -38,7 +38,7 @@ func (r *analyticsRepository) GetSalesSummary(startDate, endDate time.Time) (flo
 	var grossRevenue, totalRefunded float64
 	var totalOrders int64
 
-	// Sum Gross Revenue from completed/paid orders
+	// Sum Gross Revenue from completed orders
 	err := r.db.Model(&models.Order{}).
 		Where("status = ? AND created_at BETWEEN ? AND ? AND deleted_at IS NULL", models.OrderConfirmed, startDate, endDate).
 		Select("COALESCE(SUM(total), 0)").
@@ -55,13 +55,19 @@ func (r *analyticsRepository) GetSalesSummary(startDate, endDate time.Time) (flo
 		return 0, 0, 0, 0, err
 	}
 
-	// Sum Total Refunded from order_returns within the timeframe
-	err = r.db.Model(&models.OrderReturn{}).
-		Where("created_at BETWEEN ? AND ? AND deleted_at IS NULL", startDate, endDate).
-		Select("COALESCE(SUM(return_amount), 0)").
-		Row().Scan(&totalRefunded)
-	if err != nil {
-		return 0, 0, 0, 0, err
+	// Sum Total Refunded — gracefully skip if order_returns table doesn't exist
+	var tableExists int64
+	r.db.Raw("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'order_returns'").
+		Scan(&tableExists)
+
+	if tableExists > 0 {
+		err = r.db.Model(&models.OrderReturn{}).
+			Where("created_at BETWEEN ? AND ? AND deleted_at IS NULL", startDate, endDate).
+			Select("COALESCE(SUM(return_amount), 0)").
+			Row().Scan(&totalRefunded)
+		if err != nil {
+			totalRefunded = 0 // non-fatal, continue with 0
+		}
 	}
 
 	netRevenue := grossRevenue - totalRefunded
@@ -85,6 +91,15 @@ func (r *analyticsRepository) GetBestSellers(limit int) ([]BestSellerResult, err
 
 func (r *analyticsRepository) GetReturnImpact() ([]ReturnImpactResult, error) {
 	var results []ReturnImpactResult
+
+	// Gracefully handle missing table
+	var tableExists int64
+	r.db.Raw("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'order_returns'").
+		Scan(&tableExists)
+
+	if tableExists == 0 {
+		return results, nil // return empty slice, not error
+	}
 
 	err := r.db.Table("order_returns").
 		Select("reason, COUNT(id) as return_count, SUM(return_amount) as total_refunded").

@@ -1,6 +1,6 @@
 # ☕ POS Kopitiam
 
-Sistem Point of Sale (POS) modern berbasis web untuk kedai kopi, dibangun dengan Golang + Next.js dan MySQL via Docker.
+Sistem Point of Sale (POS) modern berbasis web untuk kedai kopi, dibangun dengan Golang + Next.js dan MySQL via Docker. OKOKOKK
 
 ---
 

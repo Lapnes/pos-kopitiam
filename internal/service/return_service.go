@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"time"
 
 	"github.com/Lapnes/pos-kopitiam/internal/models"
 	"github.com/Lapnes/pos-kopitiam/internal/repository"
@@ -56,6 +57,10 @@ func (s *returnService) ProcessReturn(orderID, processedBy uuid.UUID, returnAmou
 		OriginalAmount: order.Total,
 		ReturnAmount:   returnAmount,
 	}
+
+	now := time.Now()
+	orderReturn.CreatedAt = now
+	orderReturn.UpdatedAt = now
 
 	if err := tx.Create(orderReturn).Error; err != nil {
 		return nil, errors.New("failed to save return record: " + err.Error())

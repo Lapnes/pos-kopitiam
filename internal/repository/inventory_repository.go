@@ -40,7 +40,7 @@ func (r *inventoryRepository) CreateRawMaterial(rm *models.RawMaterial) error {
 }
 
 func (r *inventoryRepository) UpdateRawMaterial(rm *models.RawMaterial) error {
-	return r.db.Save(rm).Error
+	return r.db.Omit("created_at").Save(rm).Error
 }
 
 func (r *inventoryRepository) GetRawMaterial(id uuid.UUID) (*models.RawMaterial, error) {
@@ -62,7 +62,7 @@ func (r *inventoryRepository) CreateRecipe(recipe *models.Recipe) error {
 }
 
 func (r *inventoryRepository) UpdateRecipe(recipe *models.Recipe) error {
-	return r.db.Save(recipe).Error
+	return r.db.Omit("created_at").Save(recipe).Error
 }
 
 func (r *inventoryRepository) GetRecipeByMenuID(menuID uuid.UUID) (*models.Recipe, error) {

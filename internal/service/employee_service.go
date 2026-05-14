@@ -34,15 +34,9 @@ func (s *employeeService) GetEmployeeByID(id string) (*models.Employee, error) {
 }
 
 func (s *employeeService) CreateEmployee(branchID uuid.UUID, name, email, password, pin string, role models.Role, isActive bool) (*models.Employee, error) {
-	// Hash password and pin
 	hashedPassword, err := utils.HashPassword(password)
 	if err != nil {
 		return nil, errors.New("failed to hash password")
-	}
-
-	hashedPin, err := utils.HashPassword(pin)
-	if err != nil {
-		return nil, errors.New("failed to hash pin")
 	}
 
 	employee := &models.Employee{
@@ -50,7 +44,7 @@ func (s *employeeService) CreateEmployee(branchID uuid.UUID, name, email, passwo
 		Name:     name,
 		Email:    email,
 		Password: hashedPassword,
-		PINCode:  hashedPin,
+		PINCode:  pin,
 		Role:     role,
 		IsActive: isActive,
 	}
@@ -58,7 +52,6 @@ func (s *employeeService) CreateEmployee(branchID uuid.UUID, name, email, passwo
 	if err := s.userRepo.Create(employee); err != nil {
 		return nil, err
 	}
-
 	return employee, nil
 }
 

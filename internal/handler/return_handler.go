@@ -36,8 +36,11 @@ func (h *ReturnHandler) ProcessReturn(c *gin.Context) {
 		return
 	}
 
-	// Extract manager/superadmin ID from JWT context
-	userIDStr, _ := c.Get("user_id")
+	userIDStr, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("User ID not found in context", "UNAUTHORIZED", nil))
+		return
+	}
 	processedBy, err := uuid.Parse(userIDStr.(string))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("Invalid user ID", "UNAUTHORIZED", err.Error()))

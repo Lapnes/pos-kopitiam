@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -20,6 +21,9 @@ func InitDB(cfg *Config) *gorm.DB {
 
 	gormConfig := &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
+		NowFunc: func() time.Time {
+			return time.Now().Local()
+		},
 	}
 
 	if cfg.AppEnv == "prod" {

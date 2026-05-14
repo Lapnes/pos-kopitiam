@@ -28,9 +28,17 @@ func (h *ShiftHandler) OpenShift(c *gin.Context) {
 		return
 	}
 
-	// Extract user and branch from context (set by Auth middleware)
-	userIDStr, _ := c.Get("user_id")
-	branchIDStr, _ := c.Get("branch_id")
+	// FIX: pakai "userID" dan "branchID" (sesuai auth middleware)
+	userIDStr, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("User ID not found", "UNAUTHORIZED", nil))
+		return
+	}
+	branchIDStr, exists := c.Get("branchID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("Branch ID not found", "UNAUTHORIZED", nil))
+		return
+	}
 
 	userID, err := uuid.Parse(userIDStr.(string))
 	if err != nil {
@@ -54,7 +62,11 @@ func (h *ShiftHandler) OpenShift(c *gin.Context) {
 }
 
 func (h *ShiftHandler) GetCurrentShift(c *gin.Context) {
-	userIDStr, _ := c.Get("user_id")
+	userIDStr, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("User ID not found", "UNAUTHORIZED", nil))
+		return
+	}
 	userID, err := uuid.Parse(userIDStr.(string))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("Invalid user ID", "UNAUTHORIZED", err.Error()))
@@ -81,7 +93,11 @@ func (h *ShiftHandler) CloseShift(c *gin.Context) {
 		return
 	}
 
-	userIDStr, _ := c.Get("user_id")
+	userIDStr, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("User ID not found", "UNAUTHORIZED", nil))
+		return
+	}
 	userID, err := uuid.Parse(userIDStr.(string))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("Invalid user ID", "UNAUTHORIZED", err.Error()))

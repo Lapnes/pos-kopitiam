@@ -77,4 +77,3 @@ func (s *authService) generateTokens(userID, name, email, role, branchID string)
 		},
 	}, nil
 }
-

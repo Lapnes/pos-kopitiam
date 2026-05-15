@@ -248,9 +248,11 @@ type RawMaterial struct {
 	CostPerUnit  float64 `gorm:"type:decimal(15,2);not null" json:"cost_per_unit"`
 }
 
+// FIX: Changed uniqueIndex to composite unique index that includes deleted_at
+// This allows soft-deleted recipes to be recreated for the same menu
 type Recipe struct {
 	BaseModel
-	MenuID       uuid.UUID    `gorm:"type:char(36);not null;uniqueIndex" json:"menu_id"`
+	MenuID       uuid.UUID    `gorm:"type:char(36);not null;uniqueIndex:idx_recipe_menu_deleted" json:"menu_id"`
 	Instructions string       `gorm:"type:text" json:"instructions"`
 	Ingredients  []RecipeItem `gorm:"foreignKey:RecipeID" json:"ingredients"`
 }

@@ -139,7 +139,7 @@ func (h *InventoryHandler) DeleteRawMaterial(c *gin.Context) {
 
 // CreateRecipe godoc
 // @Summary      Create a recipe (BOM) for a menu item
-// @Description  Links a set of raw material ingredients to a menu (Bill of Materials). If a recipe already exists for the given menu_id, it performs an upsert. The menu must have is_recipe_based=true for ConfirmOrder to use this recipe for stock deduction.
+// @Description  Links a set of raw material ingredients to a menu (Bill of Materials). If a recipe already exists for the given menu_id, it performs an upsert (update). The menu must have is_recipe_based=true for ConfirmOrder to use this recipe for stock deduction.
 // @Tags         Inventory
 // @Accept       json
 // @Produce      json
@@ -155,7 +155,8 @@ func (h *InventoryHandler) CreateRecipe(c *gin.Context) {
 		return
 	}
 
-	createdRecipe, err := h.inventoryService.CreateRecipe(&recipe)
+	// FIX: Use UpsertRecipe instead of CreateRecipe to handle existing recipes
+	createdRecipe, err := h.inventoryService.UpsertRecipe(&recipe)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error(), "BAD_REQUEST", nil))
 		return

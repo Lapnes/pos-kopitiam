@@ -21,6 +21,11 @@ type InventoryRepository interface {
 	GetRecipeByMenuID(menuID uuid.UUID) (*models.Recipe, error)
 	GetRecipeByID(id uuid.UUID) (*models.Recipe, error)
 	DeleteRecipe(id uuid.UUID) error
+
+	// FIX: Added method to find recipe including soft-deleted ones
+	GetRecipeByMenuIDUnscoped(menuID uuid.UUID) (*models.Recipe, error)
+	// FIX: Added method to hard delete (for replacing soft-deleted recipes)
+	HardDeleteRecipe(id uuid.UUID) error
 }
 
 type inventoryRepository struct {
@@ -75,6 +80,16 @@ func (r *inventoryRepository) GetRecipeByMenuID(menuID uuid.UUID) (*models.Recip
 	return &recipe, nil
 }
 
+// FIX: Get recipe including soft-deleted records
+func (r *inventoryRepository) GetRecipeByMenuIDUnscoped(menuID uuid.UUID) (*models.Recipe, error) {
+	var recipe models.Recipe
+	err := r.db.Unscoped().Preload("Ingredients").First(&recipe, "menu_id = ?", menuID).Error
+	if err != nil {
+		return nil, err
+	}
+	return &recipe, nil
+}
+
 func (r *inventoryRepository) GetRecipeByID(id uuid.UUID) (*models.Recipe, error) {
 	var recipe models.Recipe
 	err := r.db.Preload("Ingredients").First(&recipe, "id = ?", id).Error
@@ -86,4 +101,9 @@ func (r *inventoryRepository) GetRecipeByID(id uuid.UUID) (*models.Recipe, error
 
 func (r *inventoryRepository) DeleteRecipe(id uuid.UUID) error {
 	return r.db.Delete(&models.Recipe{}, "id = ?", id).Error
+}
+
+// FIX: Hard delete for replacing soft-deleted recipes
+func (r *inventoryRepository) HardDeleteRecipe(id uuid.UUID) error {
+	return r.db.Unscoped().Delete(&models.Recipe{}, "id = ?", id).Error
 }

@@ -31,13 +31,16 @@ type orderService struct {
 	db            *gorm.DB
 	orderRepo     repository.OrderRepository
 	inventoryRepo repository.InventoryRepository
+	shiftRepo     repository.ShiftRepository
 }
 
-func NewOrderService(db *gorm.DB, orderRepo repository.OrderRepository, inventoryRepo repository.InventoryRepository) OrderService {
+// FIX: Updated constructor to accept shiftRepo
+func NewOrderService(db *gorm.DB, orderRepo repository.OrderRepository, inventoryRepo repository.InventoryRepository, shiftRepo repository.ShiftRepository) OrderService {
 	return &orderService{
 		db:            db,
 		orderRepo:     orderRepo,
 		inventoryRepo: inventoryRepo,
+		shiftRepo:     shiftRepo,
 	}
 }
 
@@ -70,6 +73,11 @@ func (s *orderService) CreateOrder(req dto.CreateOrderRequest, userID string, br
 		var menu models.Menu
 		if err := s.db.Where("id = ?", itemUUID).First(&menu).Error; err != nil {
 			return nil, fmt.Errorf("menu item %s not found: %w", item.MenuID, err)
+		}
+
+		// FIX: Validate menu is active
+		if !menu.IsActive {
+			return nil, fmt.Errorf("menu item %s is not active", menu.Name)
 		}
 
 		orderDetails = append(orderDetails, models.OrderDetail{
@@ -161,9 +169,15 @@ func (s *orderService) ConfirmOrder(orderID string) (*models.Order, error) {
 		}
 
 		if menu.IsRecipeBased {
+			// FIX: Use Unscoped to find soft-deleted recipes too, then check if active
 			var recipe models.Recipe
-			if err := tx.Preload("Ingredients").Where("menu_id = ?", detail.MenuID).First(&recipe).Error; err != nil {
+			if err := tx.Unscoped().Preload("Ingredients").Where("menu_id = ?", detail.MenuID).First(&recipe).Error; err != nil {
 				return nil, fmt.Errorf("recipe not found for recipe-based menu %s: %w", detail.MenuName, err)
+			}
+
+			// If recipe is soft-deleted, we can't use it for stock deduction
+			if recipe.DeletedAt.Valid {
+				return nil, fmt.Errorf("recipe for menu %s has been deleted", detail.MenuName)
 			}
 
 			for _, ingredient := range recipe.Ingredients {
@@ -198,6 +212,15 @@ func (s *orderService) ConfirmOrder(orderID string) (*models.Order, error) {
 	}
 
 	order.Status = models.OrderConfirmed
+
+	// FIX: Set ShiftID from current active shift if available
+	if s.shiftRepo != nil {
+		shift, err := s.shiftRepo.GetActiveShift(order.EmployeeID)
+		if err == nil && shift != nil {
+			order.ShiftID = &shift.ID
+		}
+	}
+
 	if err := tx.Save(order).Error; err != nil {
 		return nil, errors.New("failed to update order status")
 	}
@@ -236,6 +259,11 @@ func (s *orderService) VoidItem(orderID string, orderDetailID string, reason str
 
 	if order.Status == models.OrderPaid || order.Status == models.OrderRefunded {
 		return nil, errors.New("cannot void items on paid or refunded orders")
+	}
+
+	// FIX: Also prevent voiding on cancelled orders
+	if order.Status == models.OrderCancelled {
+		return nil, errors.New("cannot void items on cancelled orders")
 	}
 
 	detailUUID, err := uuid.Parse(orderDetailID)
@@ -298,6 +326,11 @@ func (s *orderService) VoidOrder(orderID string, reason string) (*models.Order, 
 
 	if order.Status == models.OrderPaid || order.Status == models.OrderRefunded {
 		return nil, errors.New("cannot void paid or refunded orders")
+	}
+
+	// FIX: Also prevent voiding already cancelled orders
+	if order.Status == models.OrderCancelled {
+		return nil, errors.New("cannot void already cancelled orders")
 	}
 
 	tx := s.db.Begin()

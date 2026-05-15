@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/Lapnes/pos-kopitiam/internal/models"
 	"github.com/Lapnes/pos-kopitiam/internal/repository"
@@ -14,7 +15,8 @@ type InventoryService interface {
 	GetRawMaterial(id uuid.UUID) (*models.RawMaterial, error)
 	DeleteRawMaterial(id uuid.UUID) error
 
-	CreateRecipe(recipe *models.Recipe) (*models.Recipe, error)
+	// FIX: Changed CreateRecipe to UpsertRecipe to clarify intent
+	UpsertRecipe(recipe *models.Recipe) (*models.Recipe, error)
 	UpdateRecipe(recipe *models.Recipe) (*models.Recipe, error)
 	GetRecipeByMenuID(menuID uuid.UUID) (*models.Recipe, error)
 	DeleteRecipe(id uuid.UUID) error
@@ -47,37 +49,87 @@ func (s *inventoryService) DeleteRawMaterial(id uuid.UUID) error {
 	return s.inventoryRepo.DeleteRawMaterial(id)
 }
 
-// CreateRecipe creates a new recipe or updates existing one if menu_id already exists (upsert).
+// UpsertRecipe creates a new recipe OR updates existing one if menu_id already exists.
+// This handles the case where a recipe already exists for the menu (from seeding or previous creation).
 // Returns the created or updated recipe with its ID populated.
-func (s *inventoryService) CreateRecipe(recipe *models.Recipe) (*models.Recipe, error) {
+func (s *inventoryService) UpsertRecipe(recipe *models.Recipe) (*models.Recipe, error) {
 	if len(recipe.Ingredients) == 0 {
 		return nil, errors.New("recipe must have at least one ingredient")
 	}
 
-	db := s.inventoryRepo.GetDB()
-	if db == nil {
-		return nil, errors.New("database connection not available")
-	}
-
-	// Try to find existing recipe first
-	existing, err := s.inventoryRepo.GetRecipeByMenuID(recipe.MenuID)
+	// Try to find existing recipe (including soft-deleted) for this menu
+	existing, err := s.inventoryRepo.GetRecipeByMenuIDUnscoped(recipe.MenuID)
 	if err == nil && existing != nil {
-		// Recipe exists, update it instead
+		if existing.DeletedAt.Valid {
+			// Hard delete the old soft-deleted recipe so we can recreate it
+			if err := s.inventoryRepo.HardDeleteRecipe(existing.ID); err != nil {
+				return nil, fmt.Errorf("failed to clean up deleted recipe: %w", err)
+			}
+			// Now create the new one
+			if err := s.inventoryRepo.CreateRecipe(recipe); err != nil {
+				return nil, fmt.Errorf("failed to create recipe after hard delete: %w", err)
+			}
+			return s.inventoryRepo.GetRecipeByMenuID(recipe.MenuID)
+		}
+
+		// Recipe exists and is active - update it (true upsert behavior)
 		recipe.ID = existing.ID
+		// Preserve created_at by using Omit
 		if err := s.inventoryRepo.UpdateRecipe(recipe); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to update existing recipe: %w", err)
 		}
 		// Reload with associations
 		return s.inventoryRepo.GetRecipeByMenuID(recipe.MenuID)
 	}
 
-	// No existing recipe, create new
+	// No existing recipe found - create new
 	if err := s.inventoryRepo.CreateRecipe(recipe); err != nil {
-		return nil, err
+		// Check if error is duplicate key (race condition or soft-deleted record)
+		if isDuplicateKeyError(err) {
+			// Try to find and update the existing record
+			existing, findErr := s.inventoryRepo.GetRecipeByMenuIDUnscoped(recipe.MenuID)
+			if findErr == nil && existing != nil {
+				if existing.DeletedAt.Valid {
+					s.inventoryRepo.HardDeleteRecipe(existing.ID)
+					if retryErr := s.inventoryRepo.CreateRecipe(recipe); retryErr != nil {
+						return nil, fmt.Errorf("failed to create recipe after duplicate key hard delete: %w", retryErr)
+					}
+					return s.inventoryRepo.GetRecipeByMenuID(recipe.MenuID)
+				}
+				
+				recipe.ID = existing.ID
+				if updErr := s.inventoryRepo.UpdateRecipe(recipe); updErr != nil {
+					return nil, fmt.Errorf("failed to update recipe after duplicate key: %w", updErr)
+				}
+				return s.inventoryRepo.GetRecipeByMenuID(recipe.MenuID)
+			}
+		}
+		return nil, fmt.Errorf("failed to create recipe: %w", err)
 	}
 
 	// Reload with associations to ensure ID and relations are populated
 	return s.inventoryRepo.GetRecipeByMenuID(recipe.MenuID)
+}
+
+func isDuplicateKeyError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return contains(errStr, "1062") || contains(errStr, "Duplicate entry") || contains(errStr, "duplicate key")
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsAt(s, substr, 0))
+}
+
+func containsAt(s, substr string, start int) bool {
+	for i := start; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *inventoryService) UpdateRecipe(recipe *models.Recipe) (*models.Recipe, error) {

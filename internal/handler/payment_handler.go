@@ -69,6 +69,29 @@ func (h *PaymentHandler) ProcessPayment(c *gin.Context) {
 		return
 	}
 
+	// FIX: Validate order is in a payable state (confirmed or pending)
+	if order.Status != models.OrderConfirmed && order.Status != models.OrderPending {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse(
+			"Order cannot be paid in current status: "+string(order.Status),
+			"BAD_REQUEST",
+			nil,
+		))
+		return
+	}
+
+	// FIX: Validate total_paid covers the order total
+	if req.TotalPaid < order.Total {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse(
+			"Insufficient payment amount",
+			"BAD_REQUEST",
+			map[string]interface{}{
+				"required": order.Total,
+				"received": req.TotalPaid,
+			},
+		))
+		return
+	}
+
 	// Build Payment + PaymentSplit models
 	payment := models.Payment{
 		OrderID:      orderID,
@@ -86,7 +109,7 @@ func (h *PaymentHandler) ProcessPayment(c *gin.Context) {
 		})
 	}
 
-	// Persist in a transaction: create Payment then its splits
+	// Persist in a transaction: create Payment, its splits, and update order status
 	tx := h.db.Begin()
 	if tx.Error != nil {
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to start transaction", "INTERNAL_ERROR", tx.Error.Error()))
@@ -107,6 +130,13 @@ func (h *PaymentHandler) ProcessPayment(c *gin.Context) {
 	if err := tx.Create(&splits).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to create payment splits", "INTERNAL_ERROR", err.Error()))
+		return
+	}
+
+	// FIX: Update order status to paid
+	if err := tx.Model(&order).Update("status", models.OrderPaid).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to update order status", "INTERNAL_ERROR", err.Error()))
 		return
 	}
 

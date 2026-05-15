@@ -38,16 +38,23 @@ func (r *analyticsRepository) GetSalesSummary(startDate, endDate time.Time) (flo
 	var grossRevenue, totalRefunded float64
 	var totalOrders int64
 
-	// Sum Gross Revenue from confirmed/paid orders only (not pending)
+	// FIX: Use safer Scan(&struct) pattern instead of Row().Scan
+	var grossResult struct {
+		Gross float64
+	}
+
+	// Sum Gross Revenue from confirmed/paid/served orders only (not pending)
 	err := r.db.Model(&models.Order{}).
 		Where("status IN ? AND created_at BETWEEN ? AND ? AND deleted_at IS NULL",
 			[]models.OrderStatus{models.OrderConfirmed, models.OrderPaid, models.OrderServed},
 			startDate, endDate).
-		Select("COALESCE(SUM(total), 0)").
-		Row().Scan(&grossRevenue)
+		Select("COALESCE(SUM(total), 0) as gross").
+		Scan(&grossResult).Error
+
 	if err != nil {
 		return 0, 0, 0, 0, err
 	}
+	grossRevenue = grossResult.Gross
 
 	// Count total transactions (confirmed/paid orders only)
 	err = r.db.Model(&models.Order{}).
@@ -65,12 +72,17 @@ func (r *analyticsRepository) GetSalesSummary(startDate, endDate time.Time) (flo
 		Scan(&tableExists)
 
 	if tableExists > 0 {
+		var refundResult struct {
+			Total float64
+		}
 		err = r.db.Model(&models.OrderReturn{}).
 			Where("created_at BETWEEN ? AND ? AND deleted_at IS NULL", startDate, endDate).
-			Select("COALESCE(SUM(return_amount), 0)").
-			Row().Scan(&totalRefunded)
+			Select("COALESCE(SUM(return_amount), 0) as total").
+			Scan(&refundResult).Error
 		if err != nil {
 			totalRefunded = 0 // non-fatal, continue with 0
+		} else {
+			totalRefunded = refundResult.Total
 		}
 	}
 

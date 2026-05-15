@@ -29,6 +29,8 @@ func main() {
 	// -------------------------------------------------------------------------
 	// 2. Employees — PIN codes aligned with api_runner.go expectations
 	// -------------------------------------------------------------------------
+	// FIX: PIN codes must match api_runner.go expectations:
+	// manager: 111111, cashier: 222222, kitchen: 333333
 	hashedPassword, _ := utils.HashPassword("password123")
 	users := []models.Employee{
 		{BranchID: mainBranch.ID, Name: "Manager", Email: "manager@kopitiam.com", Password: hashedPassword, PINCode: "111111", Role: models.RoleManager},
@@ -36,11 +38,34 @@ func main() {
 		{BranchID: mainBranch.ID, Name: "Kitchen 1", Email: "kitchen1@kopitiam.com", Password: hashedPassword, PINCode: "333333", Role: models.RoleKitchen},
 	}
 	for _, u := range users {
-		db.FirstOrCreate(&u, models.Employee{Email: u.Email})
-		db.Model(&u).Updates(map[string]interface{}{
-			"password": u.Password,
-			"pin_code": u.PINCode,
-		})
+		// FIX: Use Count to avoid "record not found" logs
+		var count int64
+		db.Model(&models.Employee{}).Where("email = ?", u.Email).Count(&count)
+		
+		if count == 0 {
+			// Create new
+			if err := db.Create(&u).Error; err != nil {
+				log.Printf("  [error] failed to create user %s: %v", u.Email, err)
+			} else {
+				log.Printf("  [ok]   created user: %s (PIN: %s)", u.Name, u.PINCode)
+			}
+		} else {
+			// Update existing to ensure PIN and password are correct
+			var existing models.Employee
+			db.Where("email = ?", u.Email).First(&existing)
+			
+			updates := map[string]interface{}{
+				"password": u.Password,
+				"pin_code": u.PINCode,
+				"role":     u.Role,
+				"name":     u.Name,
+			}
+			if err := db.Model(&existing).Updates(updates).Error; err != nil {
+				log.Printf("  [error] failed to update user %s: %v", u.Email, err)
+			} else {
+				log.Printf("  [ok]   updated user: %s (PIN: %s)", u.Name, u.PINCode)
+			}
+		}
 	}
 
 	// -------------------------------------------------------------------------
@@ -147,8 +172,10 @@ func main() {
 	}
 
 	var existingRM models.RawMaterial
-	result := db.Where("name = ?", coffeeBeans.Name).First(&existingRM)
-	if result.Error != nil {
+	var count int64
+	db.Model(&models.RawMaterial{}).Where("name = ?", coffeeBeans.Name).Count(&count)
+	
+	if count == 0 {
 		// Create new
 		if err := db.Create(&coffeeBeans).Error; err != nil {
 			log.Printf("  [error] failed to create raw material: %v", err)
@@ -157,16 +184,17 @@ func main() {
 			existingRM = coffeeBeans
 		}
 	} else {
+		db.Where("name = ?", coffeeBeans.Name).First(&existingRM)
 		log.Printf("  [skip] raw material already exists: %s", coffeeBeans.Name)
 	}
 
 	// Create recipe for Milk Coffee if it doesn't exist
 	milkCoffeeMenu := menuMap["Milk Coffee"]
 	if milkCoffeeMenu.ID != uuid.Nil && milkCoffeeMenu.IsRecipeBased {
-		var existingRecipe models.Recipe
-		recipeResult := db.Where("menu_id = ?", milkCoffeeMenu.ID).First(&existingRecipe)
+		var recipeCount int64
+		db.Model(&models.Recipe{}).Where("menu_id = ?", milkCoffeeMenu.ID).Count(&recipeCount)
 
-		if recipeResult.Error != nil {
+		if recipeCount == 0 {
 			// Create recipe with ingredients
 			recipe := models.Recipe{
 				MenuID:       milkCoffeeMenu.ID,
@@ -192,10 +220,10 @@ func main() {
 	// Create recipe for Iced Milk Coffee if it doesn't exist
 	icedMilkCoffeeMenu := menuMap["Iced Milk Coffee"]
 	if icedMilkCoffeeMenu.ID != uuid.Nil && icedMilkCoffeeMenu.IsRecipeBased {
-		var existingRecipe models.Recipe
-		recipeResult := db.Where("menu_id = ?", icedMilkCoffeeMenu.ID).First(&existingRecipe)
+		var recipeCount int64
+		db.Model(&models.Recipe{}).Where("menu_id = ?", icedMilkCoffeeMenu.ID).Count(&recipeCount)
 
-		if recipeResult.Error != nil {
+		if recipeCount == 0 {
 			recipe := models.Recipe{
 				MenuID:       icedMilkCoffeeMenu.ID,
 				Instructions: "1. Grind 20g Arabica beans\n2. Brew double espresso\n3. Add ice\n4. Pour milk",

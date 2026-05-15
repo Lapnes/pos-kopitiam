@@ -31,7 +31,8 @@ func InitRoutes(router *gin.Engine, db *gorm.DB, cfg *config.Config) {
 
 	// Services
 	authService := service.NewAuthService(userRepo, cfg)
-	orderService := service.NewOrderService(db, orderRepo, inventoryRepo)
+	// FIX: Pass shiftRepo to OrderService for ShiftID assignment during confirm
+	orderService := service.NewOrderService(db, orderRepo, inventoryRepo, shiftRepo)
 	shiftService := service.NewShiftService(shiftRepo)
 	returnService := service.NewReturnService(db, returnRepo, orderRepo)
 	inventoryService := service.NewInventoryService(inventoryRepo)

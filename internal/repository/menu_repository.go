@@ -19,7 +19,7 @@ func NewMenuRepository(db *gorm.DB) MenuRepository {
 
 func (r *menuRepository) GetActiveMenus() ([]models.Menu, error) {
 	var menus []models.Menu
-	// Preload Category if needed, but for now just fetching the menus is enough
-	err := r.db.Where("is_active = ?", true).Find(&menus).Error
+	// Preload Categories for M2M relationship
+	err := r.db.Preload("Categories").Where("is_active = ?", true).Find(&menus).Error
 	return menus, err
 }

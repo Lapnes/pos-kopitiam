@@ -22,6 +22,8 @@ func NewPrinterService(orderRepo repository.OrderRepository, userRepo repository
 	return &printerService{orderRepo: orderRepo, userRepo: userRepo}
 }
 
+// TASK 4.3: Iterate payment.Splits instead of reading PaymentMethod/Amount from
+// the Payment header, since those fields were moved to PaymentSplit during normalization.
 func (s *printerService) GenerateReceipt(orderID uuid.UUID) (map[string]interface{}, error) {
 	order, err := s.orderRepo.FindByID(orderID.String())
 	if err != nil {
@@ -43,16 +45,19 @@ func (s *printerService) GenerateReceipt(orderID uuid.UUID) (map[string]interfac
 		})
 	}
 
+	// TASK 4.3: Build payment lines by iterating over splits per Payment
 	var payments []map[string]interface{}
 	for _, payment := range order.Payments {
-		payments = append(payments, map[string]interface{}{
-			"method": string(payment.PaymentMethod),
-			"amount": payment.Amount,
-		})
+		for _, split := range payment.Splits {
+			payments = append(payments, map[string]interface{}{
+				"method": string(split.PaymentMethod),
+				"amount": split.Amount,
+			})
+		}
 	}
 
 	payload := map[string]interface{}{
-		"type":         "receipt",
+		"type": "receipt",
 		"store_header": map[string]interface{}{
 			"name":    "KopiTiam Main Branch",
 			"address": "Jl. Sudirman No. 1, Jakarta",

@@ -22,6 +22,19 @@ type ProcessReturnRequest struct {
 	Reason       string  `json:"reason" binding:"required"`
 }
 
+// ProcessReturn godoc
+// @Summary      Process a return / partial refund
+// @Description  Creates an OrderReturn record against a confirmed order. Sets order.has_returns = true. Accessible by Cashier and Manager.
+// @Tags         Returns
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Order UUID"
+// @Param        request body ProcessReturnRequest true "Return payload"
+// @Success      201 {object} utils.Response{data=models.OrderReturn} "Return processed successfully"
+// @Failure      400 {object} utils.Response "Invalid payload, invalid order ID, or return amount exceeds limit"
+// @Failure      401 {object} utils.Response "Unauthorized"
+// @Router       /orders/{id}/returns [post]
 func (h *ReturnHandler) ProcessReturn(c *gin.Context) {
 	var req ProcessReturnRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

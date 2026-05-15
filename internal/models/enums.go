@@ -2,12 +2,11 @@ package models
 
 type Role string
 
+// TASK 5: Only 3 core roles are supported.
 const (
-	RoleSuperadmin Role = "superadmin"
-	RoleManager    Role = "manager"
-	RoleCashier    Role = "cashier"
-	RoleKitchen    Role = "kitchen"
-	RoleWaiter     Role = "waiter"
+	RoleManager Role = "manager"
+	RoleCashier Role = "cashier"
+	RoleKitchen Role = "kitchen"
 )
 
 type Station string

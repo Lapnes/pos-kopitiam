@@ -44,26 +44,26 @@ type Table struct {
 	QRCode   string      `gorm:"type:varchar(255)" json:"qr_code"`
 }
 
+// TASK 2.1: Removed Station field from Category (Station belongs to Menu now)
 type Category struct {
 	BaseModel
-	Name      string  `gorm:"type:varchar(100);not null" json:"name"`
-	Station   Station `gorm:"type:varchar(20);not null" json:"station"`
-	SortOrder int     `gorm:"default:0" json:"sort_order"`
-	Menus     []Menu  `gorm:"foreignKey:CategoryID" json:"menus,omitempty"`
+	Name      string `gorm:"type:varchar(100);not null" json:"name"`
+	SortOrder int    `gorm:"default:0" json:"sort_order"`
 }
 
+// TASK 2.1 & 2.2: Removed CategoryID (M2M via menu_categories). Added IsRecipeBased.
 type Menu struct {
 	BaseModel
-	CategoryID       uuid.UUID `gorm:"type:char(36);not null;index" json:"category_id"`
-	Name             string    `gorm:"type:varchar(100);not null" json:"name"`
-	Description      string    `gorm:"type:text" json:"description"`
-	Price            float64   `gorm:"type:decimal(15,2);not null" json:"price"`
-	CostPrice        float64   `gorm:"type:decimal(15,2);not null" json:"cost_price"` // HPP
-	DailyStock       int       `gorm:"not null;default:0" json:"daily_stock"`
-	IsActive         bool      `gorm:"default:true" json:"is_active"`
-	Station          Station   `gorm:"type:varchar(20);not null" json:"station"`
-	ImageURL         string    `gorm:"type:varchar(255)" json:"image_url"`
-	BigcapitalItemID string    `gorm:"type:varchar(100)" json:"bigcapital_item_id"`
+	Name          string     `gorm:"type:varchar(100);not null" json:"name"`
+	Description   string     `gorm:"type:text" json:"description"`
+	Price         float64    `gorm:"type:decimal(15,2);not null" json:"price"`
+	CostPrice     float64    `gorm:"type:decimal(15,2);not null" json:"cost_price"` // HPP
+	DailyStock    int        `gorm:"not null;default:0" json:"daily_stock"`
+	IsActive      bool       `gorm:"default:true" json:"is_active"`
+	IsRecipeBased bool       `gorm:"default:false" json:"is_recipe_based"` // TASK 2.2: Inventory branch flag
+	Station       Station    `gorm:"type:varchar(20);not null" json:"station"`
+	ImageURL      string     `gorm:"type:varchar(255)" json:"image_url"`
+	Categories    []Category `gorm:"many2many:menu_categories;" json:"categories"` // TASK 2.1: M2M
 }
 
 type Employee struct {
@@ -93,6 +93,8 @@ type Shift struct {
 	Status            string     `gorm:"type:varchar(20);default:'open'" json:"status"`
 }
 
+// TASK 2.5: Composite index on Status + CreatedAt
+// TASK 1: Removed BigcapitalSyncID and SyncedToBigcapital
 type Order struct {
 	BaseModel
 	OrderNumber   string      `gorm:"type:varchar(50);uniqueIndex;not null" json:"order_number"` // ORD-YYYYMMDD-XXXX
@@ -103,7 +105,7 @@ type Order struct {
 	CustomerName  string      `gorm:"type:varchar(100)" json:"customer_name"`
 	CustomerPhone string      `gorm:"type:varchar(20)" json:"customer_phone"`
 	OrderType     OrderType   `gorm:"type:varchar(20);not null" json:"order_type"`
-	Status        OrderStatus `gorm:"type:varchar(20);not null;default:'pending'" json:"status"`
+	Status        OrderStatus `gorm:"type:varchar(20);not null;default:'pending';index:idx_status_date" json:"status"`
 
 	Subtotal       float64 `gorm:"type:decimal(15,2);not null" json:"subtotal"`
 	TaxAmount      float64 `gorm:"type:decimal(15,2);not null" json:"tax_amount"` // PPN
@@ -121,23 +123,38 @@ type Order struct {
 	// Return tracking
 	HasReturns bool `gorm:"default:false" json:"has_returns"`
 
-	// Bigcapital integration
-	BigcapitalSyncID   string `gorm:"type:varchar(100)" json:"bigcapital_sync_id"`
-	SyncedToBigcapital bool   `gorm:"default:false" json:"synced_to_bigcapital"`
-
 	OrderDetails []OrderDetail `gorm:"foreignKey:OrderID" json:"order_details"`
 	Payments     []Payment     `gorm:"foreignKey:OrderID" json:"payments"`
 }
 
+// TASK 3: OOP Fat Model — CalculateTotal encapsulates business rules on Order
+func (o *Order) CalculateTotal() {
+	var subtotal float64
+	for _, item := range o.OrderDetails {
+		if !item.IsVoided {
+			subtotal += item.Subtotal
+		}
+	}
+	o.Subtotal = subtotal
+	o.TaxAmount = subtotal * 0.11     // 11% Tax
+	o.ServiceCharge = subtotal * 0.05 // 5% Service Charge
+	o.Total = (o.Subtotal + o.TaxAmount + o.ServiceCharge) - o.DiscountAmount
+	if o.Total < 0 {
+		o.Total = 0
+	}
+}
+
+// TASK 2.3: Added CostPrice for historical COGS integrity
 type OrderDetail struct {
 	BaseModel
-	OrderID  uuid.UUID `gorm:"type:char(36);not null;index" json:"order_id"`
-	MenuID   uuid.UUID `gorm:"type:char(36);not null;index" json:"menu_id"`
-	MenuName string    `gorm:"type:varchar(100);not null" json:"menu_name"`
-	Quantity int       `gorm:"not null" json:"quantity"`
-	Price    float64   `gorm:"type:decimal(15,2);not null" json:"price"`
-	Subtotal float64   `gorm:"type:decimal(15,2);not null" json:"subtotal"`
-	Notes    string    `gorm:"type:text" json:"notes"`
+	OrderID   uuid.UUID `gorm:"type:char(36);not null;index" json:"order_id"`
+	MenuID    uuid.UUID `gorm:"type:char(36);not null;index" json:"menu_id"`
+	MenuName  string    `gorm:"type:varchar(100);not null" json:"menu_name"`
+	Quantity  int       `gorm:"not null" json:"quantity"`
+	Price     float64   `gorm:"type:decimal(15,2);not null" json:"price"`
+	CostPrice float64   `gorm:"type:decimal(15,2);not null" json:"cost_price"` // TASK 2.3: Snapshot HPP
+	Subtotal  float64   `gorm:"type:decimal(15,2);not null" json:"subtotal"`
+	Notes     string    `gorm:"type:text" json:"notes"`
 
 	// Void tracking
 	IsVoided   bool       `gorm:"default:false" json:"is_voided"`
@@ -151,16 +168,16 @@ type OrderDetail struct {
 	Priority  int       `gorm:"default:0" json:"priority"` // 0: Normal, 1: Urgent, 2: VIP
 }
 
+// TASK 2.4: Removed PaymentMethod, Amount, CashTendered from Payment header.
+// Payment now represents the full payment event; splits contain per-method detail.
 type Payment struct {
 	BaseModel
-	OrderID         uuid.UUID     `gorm:"type:char(36);not null;index" json:"order_id"`
-	ShiftID         *uuid.UUID    `gorm:"type:char(36);index" json:"shift_id"`
-	PaymentMethod   PaymentMethod `gorm:"type:varchar(20);not null" json:"payment_method"`
-	Amount          float64       `gorm:"type:decimal(15,2);not null" json:"amount"`
-	CashTendered    float64       `gorm:"type:decimal(15,2)" json:"cash_tendered"`
-	ChangeAmount    float64       `gorm:"type:decimal(15,2)" json:"change_amount"`
-	ReferenceNumber string        `gorm:"type:varchar(100)" json:"reference_number"`
-	Status          string        `gorm:"type:varchar(20);default:'success'" json:"status"` // success, refunded
+	OrderID         uuid.UUID  `gorm:"type:char(36);not null;index" json:"order_id"`
+	ShiftID         *uuid.UUID `gorm:"type:char(36);index" json:"shift_id"`
+	TotalPaid       float64    `gorm:"type:decimal(15,2);not null" json:"total_paid"` // TASK 2.4
+	ChangeAmount    float64    `gorm:"type:decimal(15,2)" json:"change_amount"`
+	ReferenceNumber string     `gorm:"type:varchar(100)" json:"reference_number"`
+	Status          string     `gorm:"type:varchar(20);default:'success'" json:"status"` // success, refunded
 
 	// Refund tracking
 	RefundedBy   *uuid.UUID `gorm:"type:char(36);index" json:"refunded_by"`
@@ -220,24 +237,6 @@ type AuditLog struct {
 	UserAgent   string     `gorm:"type:text" json:"user_agent"`
 }
 
-type BigcapitalConfig struct {
-	BaseModel
-	BaseURL    string `gorm:"type:varchar(255);not null" json:"base_url"`
-	APIKey     string `gorm:"type:varchar(255);not null" json:"api_key"`
-	OrgID      string `gorm:"type:varchar(100);not null" json:"org_id"`
-	COAMapping string `gorm:"type:json" json:"coa_mapping"` // Map of internal types to Bigcapital account IDs
-}
-
-type SyncQueue struct {
-	BaseModel
-	EntityType string `gorm:"type:varchar(50);not null" json:"entity_type"` // order, menu, customer
-	EntityID   string `gorm:"type:varchar(36);not null" json:"entity_id"`
-	Payload    string `gorm:"type:json;not null" json:"payload"`
-	Status     string `gorm:"type:varchar(20);default:'pending'" json:"status"` // pending, processing, success, failed
-	RetryCount int    `gorm:"default:0" json:"retry_count"`
-	LastError  string `gorm:"type:text" json:"last_error"`
-}
-
 // --- ADVANCED INVENTORY & BOM ---
 
 type RawMaterial struct {
@@ -269,7 +268,7 @@ type OrderReturn struct {
 	BaseModel
 	OrderID        uuid.UUID  `gorm:"type:char(36);not null;index" json:"order_id"`
 	OrderDetailID  *uuid.UUID `gorm:"type:char(36);index" json:"order_detail_id"`       // Nullable if returning whole order
-	ProcessedBy    uuid.UUID  `gorm:"type:char(36);not null;index" json:"processed_by"` // Manager/Admin ID
+	ProcessedBy    uuid.UUID  `gorm:"type:char(36);not null;index" json:"processed_by"` // Manager ID
 	Reason         string     `gorm:"type:text;not null" json:"reason"`
 	OriginalAmount float64    `gorm:"type:decimal(15,2);not null" json:"original_amount"`
 	ReturnAmount   float64    `gorm:"type:decimal(15,2);not null" json:"return_amount"` // Max 80%

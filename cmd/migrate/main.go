@@ -13,8 +13,7 @@ func main() {
 
 	log.Println("Dropping old tables to prevent schema conflicts...")
 	db.Migrator().DropTable(
-		&models.SyncQueue{},
-		&models.BigcapitalConfig{},
+		"menu_categories", // Drop M2M join table first
 		&models.AuditLog{},
 		&models.Reservation{},
 		&models.DiscountApplication{},
@@ -44,7 +43,7 @@ func main() {
 		&models.Table{},
 		&models.Category{},
 		&models.RawMaterial{},
-		&models.Menu{},
+		&models.Menu{},       // GORM will auto-create menu_categories join table
 		&models.Recipe{},
 		&models.RecipeItem{},
 		&models.Employee{},
@@ -58,8 +57,6 @@ func main() {
 		&models.DiscountApplication{},
 		&models.Reservation{},
 		&models.AuditLog{},
-		&models.BigcapitalConfig{},
-		&models.SyncQueue{},
 	)
 
 	if err != nil {

@@ -38,18 +38,22 @@ func (r *analyticsRepository) GetSalesSummary(startDate, endDate time.Time) (flo
 	var grossRevenue, totalRefunded float64
 	var totalOrders int64
 
-	// Sum Gross Revenue from completed orders
+	// Sum Gross Revenue from confirmed/paid orders only (not pending)
 	err := r.db.Model(&models.Order{}).
-		Where("status = ? AND created_at BETWEEN ? AND ? AND deleted_at IS NULL", models.OrderConfirmed, startDate, endDate).
+		Where("status IN ? AND created_at BETWEEN ? AND ? AND deleted_at IS NULL",
+			[]models.OrderStatus{models.OrderConfirmed, models.OrderPaid, models.OrderServed},
+			startDate, endDate).
 		Select("COALESCE(SUM(total), 0)").
 		Row().Scan(&grossRevenue)
 	if err != nil {
 		return 0, 0, 0, 0, err
 	}
 
-	// Count total transactions
+	// Count total transactions (confirmed/paid orders only)
 	err = r.db.Model(&models.Order{}).
-		Where("status = ? AND created_at BETWEEN ? AND ? AND deleted_at IS NULL", models.OrderConfirmed, startDate, endDate).
+		Where("status IN ? AND created_at BETWEEN ? AND ? AND deleted_at IS NULL",
+			[]models.OrderStatus{models.OrderConfirmed, models.OrderPaid, models.OrderServed},
+			startDate, endDate).
 		Count(&totalOrders).Error
 	if err != nil {
 		return 0, 0, 0, 0, err
@@ -70,7 +74,11 @@ func (r *analyticsRepository) GetSalesSummary(startDate, endDate time.Time) (flo
 		}
 	}
 
+	// Net revenue should never be negative
 	netRevenue := grossRevenue - totalRefunded
+	if netRevenue < 0 {
+		netRevenue = 0
+	}
 
 	return grossRevenue, netRevenue, totalRefunded, int(totalOrders), nil
 }

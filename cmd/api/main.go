@@ -24,10 +24,13 @@ import (
 
 // @host      localhost:8080
 // @BasePath  /api/v1
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 func main() {
 	cfg := config.LoadConfig()
 	db := config.InitDB(cfg)
-	redisClient := config.InitRedis(cfg)
 
 	if cfg.AppEnv == "prod" {
 		gin.SetMode(gin.ReleaseMode)
@@ -40,7 +43,7 @@ func main() {
 		AllowOrigins: []string{
 			"http://localhost:3000",
 			"http://127.0.0.1:3000",
-			"http://localhost:3001",   // Next.js dev fallback port
+			"http://localhost:3001", // Next.js dev fallback port
 			"http://127.0.0.1:3001",
 		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
@@ -51,7 +54,7 @@ func main() {
 	}))
 
 	// Init Routes
-	routes.InitRoutes(router, db, redisClient, cfg)
+	routes.InitRoutes(router, db, cfg)
 
 	log.Printf("Starting Server on port %s", cfg.AppPort)
 	if err := router.Run(":" + cfg.AppPort); err != nil {

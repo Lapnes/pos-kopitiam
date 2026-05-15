@@ -27,7 +27,10 @@ func (r *OrderRepo) Create(order *models.Order) error {
 
 func (r *OrderRepo) FindByID(id string) (*models.Order, error) {
 	var order models.Order
-	err := r.db.Preload("OrderDetails").Preload("Payments").First(&order, "id = ?", id).Error
+	err := r.db.Preload("OrderDetails").
+		Preload("Payments.Splits").
+		Preload("Payments").
+		First(&order, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +39,10 @@ func (r *OrderRepo) FindByID(id string) (*models.Order, error) {
 
 func (r *OrderRepo) FindByOrderNumber(orderNumber string) (*models.Order, error) {
 	var order models.Order
-	err := r.db.Preload("OrderDetails").Preload("Payments").First(&order, "order_number = ?", orderNumber).Error
+	err := r.db.Preload("OrderDetails").
+		Preload("Payments.Splits").
+		Preload("Payments").
+		First(&order, "order_number = ?", orderNumber).Error
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +51,11 @@ func (r *OrderRepo) FindByOrderNumber(orderNumber string) (*models.Order, error)
 
 func (r *OrderRepo) FindAll() ([]models.Order, error) {
 	var orders []models.Order
-	err := r.db.Preload("OrderDetails").Preload("Payments").Order("created_at desc").Find(&orders).Error
+	err := r.db.Preload("OrderDetails").
+		Preload("Payments.Splits").
+		Preload("Payments").
+		Order("created_at desc").
+		Find(&orders).Error
 	return orders, err
 }
 

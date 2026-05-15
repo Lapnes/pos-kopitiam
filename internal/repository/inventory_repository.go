@@ -19,6 +19,7 @@ type InventoryRepository interface {
 	CreateRecipe(recipe *models.Recipe) error
 	UpdateRecipe(recipe *models.Recipe) error
 	GetRecipeByMenuID(menuID uuid.UUID) (*models.Recipe, error)
+	GetRecipeByID(id uuid.UUID) (*models.Recipe, error)
 	DeleteRecipe(id uuid.UUID) error
 }
 
@@ -68,6 +69,15 @@ func (r *inventoryRepository) UpdateRecipe(recipe *models.Recipe) error {
 func (r *inventoryRepository) GetRecipeByMenuID(menuID uuid.UUID) (*models.Recipe, error) {
 	var recipe models.Recipe
 	err := r.db.Preload("Ingredients").First(&recipe, "menu_id = ?", menuID).Error
+	if err != nil {
+		return nil, err
+	}
+	return &recipe, nil
+}
+
+func (r *inventoryRepository) GetRecipeByID(id uuid.UUID) (*models.Recipe, error) {
+	var recipe models.Recipe
+	err := r.db.Preload("Ingredients").First(&recipe, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}

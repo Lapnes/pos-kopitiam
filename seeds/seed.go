@@ -6,6 +6,7 @@ import (
 	"github.com/Lapnes/pos-kopitiam/internal/config"
 	"github.com/Lapnes/pos-kopitiam/internal/models"
 	"github.com/Lapnes/pos-kopitiam/internal/utils"
+	"github.com/google/uuid"
 )
 
 func main() {
@@ -14,7 +15,9 @@ func main() {
 
 	log.Println("Seeding Database...")
 
-	// Create Branch
+	// -------------------------------------------------------------------------
+	// 1. Branch
+	// -------------------------------------------------------------------------
 	mainBranch := models.Branch{
 		Name:    "Main Branch",
 		Address: "Jl. Sudirman No. 1",
@@ -23,73 +26,195 @@ func main() {
 	}
 	db.FirstOrCreate(&mainBranch, models.Branch{Name: "Main Branch"})
 
-	// Create Users
+	// -------------------------------------------------------------------------
+	// 2. Employees — PIN codes aligned with api_runner.go expectations
+	// -------------------------------------------------------------------------
 	hashedPassword, _ := utils.HashPassword("password123")
 	users := []models.Employee{
-		{BranchID: mainBranch.ID, Name: "Super Admin", Email: "admin@kopitiam.com", Password: hashedPassword, PINCode: "111111", Role: models.RoleSuperadmin},
-		{BranchID: mainBranch.ID, Name: "Manager", Email: "manager@kopitiam.com", Password: hashedPassword, PINCode: "222222", Role: models.RoleManager},
-		{BranchID: mainBranch.ID, Name: "Cashier 1", Email: "cashier1@kopitiam.com", Password: hashedPassword, PINCode: "333333", Role: models.RoleCashier},
-		{BranchID: mainBranch.ID, Name: "Kitchen 1", Email: "kitchen1@kopitiam.com", Password: hashedPassword, PINCode: "444444", Role: models.RoleKitchen},
+		{BranchID: mainBranch.ID, Name: "Manager", Email: "manager@kopitiam.com", Password: hashedPassword, PINCode: "111111", Role: models.RoleManager},
+		{BranchID: mainBranch.ID, Name: "Cashier 1", Email: "cashier1@kopitiam.com", Password: hashedPassword, PINCode: "222222", Role: models.RoleCashier},
+		{BranchID: mainBranch.ID, Name: "Kitchen 1", Email: "kitchen1@kopitiam.com", Password: hashedPassword, PINCode: "333333", Role: models.RoleKitchen},
 	}
-
-	for _, user := range users {
-		db.FirstOrCreate(&user, models.Employee{Email: user.Email})
-		// Force update to save the new hashed passwords and PINs
-		db.Model(&user).Updates(map[string]interface{}{
-			"password": user.Password,
-			"pin_code": user.PINCode,
+	for _, u := range users {
+		db.FirstOrCreate(&u, models.Employee{Email: u.Email})
+		db.Model(&u).Updates(map[string]interface{}{
+			"password": u.Password,
+			"pin_code": u.PINCode,
 		})
 	}
 
-	// Create Areas
+	// -------------------------------------------------------------------------
+	// 3. Areas & Tables
+	// -------------------------------------------------------------------------
 	area := models.Area{BranchID: mainBranch.ID, Name: "Indoor"}
 	db.FirstOrCreate(&area, models.Area{Name: "Indoor", BranchID: mainBranch.ID})
 
-	// Create Tables
-	tables := []models.Table{
+	for _, t := range []models.Table{
 		{AreaID: area.ID, Name: "Table 1", Capacity: 4},
 		{AreaID: area.ID, Name: "Table 2", Capacity: 2},
-	}
-	for _, table := range tables {
-		db.FirstOrCreate(&table, models.Table{Name: table.Name, AreaID: area.ID})
-	}
-
-	// Create Categories
-	categoriesData := []struct {
-		Name    string
-		Station models.Station
-	}{
-		{"Coffee", models.StationBar},
-		{"Tea", models.StationBar},
-		{"Food", models.StationKitchen},
-		{"Cold Beverages", models.StationBar},
-		{"Snacks", models.StationKitchen},
-		{"Desserts", models.StationKitchen},
-		{"Juices", models.StationBar},
+	} {
+		db.FirstOrCreate(&t, models.Table{Name: t.Name, AreaID: area.ID})
 	}
 
-	categoriesMap := make(map[string]models.Category)
-	for _, c := range categoriesData {
-		cat := models.Category{Name: c.Name, Station: c.Station}
-		db.FirstOrCreate(&cat, models.Category{Name: c.Name})
-		categoriesMap[c.Name] = cat
+	// -------------------------------------------------------------------------
+	// 4. Categories — pre-seed ALL categories once, build a lookup map.
+	// -------------------------------------------------------------------------
+	categoryNames := []string{
+		"Coffee", "Tea", "Food", "Cold Beverages", "Snacks", "Desserts", "Juices",
+	}
+	categoriesMap := make(map[string]models.Category, len(categoryNames))
+	for _, name := range categoryNames {
+		cat := models.Category{Name: name}
+		db.FirstOrCreate(&cat, models.Category{Name: name})
+		categoriesMap[name] = cat
 	}
 
-	// Create Menus based on pos_kopitiam_full.sql
-	menus := []models.Menu{
-		{CategoryID: categoriesMap["Coffee"].ID, Name: "Milk Coffee", Price: 18000, CostPrice: 10000, DailyStock: 48, IsActive: true, Station: models.StationBar},
-		{CategoryID: categoriesMap["Coffee"].ID, Name: "Black Coffee", Price: 15000, CostPrice: 8000, DailyStock: 50, IsActive: true, Station: models.StationBar},
-		{CategoryID: categoriesMap["Tea"].ID, Name: "Pulled Tea", Price: 15000, CostPrice: 8000, DailyStock: 39, IsActive: true, Station: models.StationBar},
-		{CategoryID: categoriesMap["Tea"].ID, Name: "Plain Tea", Price: 8000, CostPrice: 4000, DailyStock: 40, IsActive: true, Station: models.StationBar},
-		{CategoryID: categoriesMap["Food"].ID, Name: "Fried Rice", Price: 35000, CostPrice: 20000, DailyStock: 20, IsActive: true, Station: models.StationKitchen},
-		{CategoryID: categoriesMap["Food"].ID, Name: "Fried Noodles", Price: 30000, CostPrice: 15000, DailyStock: 20, IsActive: true, Station: models.StationKitchen},
-		{CategoryID: categoriesMap["Cold Beverages"].ID, Name: "Iced Milk Coffee", Price: 20000, CostPrice: 12000, DailyStock: 30, IsActive: true, Station: models.StationBar},
-		{CategoryID: categoriesMap["Snacks"].ID, Name: "French Fries", Price: 18000, CostPrice: 10000, DailyStock: 25, IsActive: true, Station: models.StationKitchen},
-		{CategoryID: categoriesMap["Desserts"].ID, Name: "Chocolate Pudding", Price: 15000, CostPrice: 8000, DailyStock: 15, IsActive: true, Station: models.StationKitchen},
-		{CategoryID: categoriesMap["Juices"].ID, Name: "Avocado Juice", Price: 22000, CostPrice: 12000, DailyStock: 20, IsActive: true, Station: models.StationBar},
+	// -------------------------------------------------------------------------
+	// 5. Menus — define all menu seeds up front, then loop once.
+	// -------------------------------------------------------------------------
+	type menuSeed struct {
+		Name          string
+		Price         float64
+		CostPrice     float64
+		DailyStock    int
+		Station       models.Station
+		CatNames      []string
+		IsRecipeBased bool // NEW: flag for recipe-based items
 	}
-	for _, menu := range menus {
-		db.FirstOrCreate(&menu, models.Menu{Name: menu.Name})
+
+	menuSeeds := []menuSeed{
+		{"Milk Coffee", 18000, 10000, 48, models.StationBar, []string{"Coffee"}, true},
+		{"Black Coffee", 15000, 8000, 50, models.StationBar, []string{"Coffee"}, false},
+		{"Pulled Tea", 15000, 8000, 39, models.StationBar, []string{"Tea"}, false},
+		{"Plain Tea", 8000, 4000, 40, models.StationBar, []string{"Tea"}, false},
+		{"Fried Rice", 35000, 20000, 20, models.StationKitchen, []string{"Food"}, false},
+		{"Fried Noodles", 30000, 15000, 20, models.StationKitchen, []string{"Food"}, false},
+		{"Iced Milk Coffee", 20000, 12000, 30, models.StationBar, []string{"Cold Beverages"}, true},
+		{"French Fries", 18000, 10000, 25, models.StationKitchen, []string{"Snacks"}, false},
+		{"Chocolate Pudding", 15000, 8000, 15, models.StationKitchen, []string{"Desserts"}, false},
+		{"Avocado Juice", 22000, 12000, 20, models.StationBar, []string{"Juices"}, false},
+	}
+
+	menuMap := make(map[string]models.Menu) // Track created menus for recipe linking
+	for _, ms := range menuSeeds {
+		var count int64
+		db.Model(&models.Menu{}).Where("name = ?", ms.Name).Count(&count)
+		if count > 0 {
+			log.Printf("  [skip] menu already exists: %s", ms.Name)
+			// Still load into menuMap for recipe linking
+			var existing models.Menu
+			db.Where("name = ?", ms.Name).First(&existing)
+			menuMap[ms.Name] = existing
+			continue
+		}
+
+		cats := make([]models.Category, 0, len(ms.CatNames))
+		for _, cn := range ms.CatNames {
+			cats = append(cats, categoriesMap[cn])
+		}
+
+		menu := models.Menu{
+			Name:          ms.Name,
+			Price:         ms.Price,
+			CostPrice:     ms.CostPrice,
+			DailyStock:    ms.DailyStock,
+			IsActive:      true,
+			IsRecipeBased: ms.IsRecipeBased,
+			Station:       ms.Station,
+			Categories:    cats,
+		}
+
+		if err := db.Create(&menu).Error; err != nil {
+			log.Printf("  [error] failed to create menu %s: %v", ms.Name, err)
+		} else {
+			log.Printf("  [ok]   created menu: %s", ms.Name)
+			menuMap[ms.Name] = menu
+		}
+	}
+
+	// -------------------------------------------------------------------------
+	// 6. Raw Materials & Recipes (BOM) — NEW SECTION
+	// -------------------------------------------------------------------------
+	// Pre-seed a raw material and recipe for Milk Coffee so API tests work
+	// without needing to create raw materials first.
+
+	coffeeBeans := models.RawMaterial{
+		Name:         "Arabica Coffee Beans",
+		Unit:         "gram",
+		CurrentStock: 5000,
+		MinimumStock: 500,
+		CostPerUnit:  150,
+	}
+
+	var existingRM models.RawMaterial
+	result := db.Where("name = ?", coffeeBeans.Name).First(&existingRM)
+	if result.Error != nil {
+		// Create new
+		if err := db.Create(&coffeeBeans).Error; err != nil {
+			log.Printf("  [error] failed to create raw material: %v", err)
+		} else {
+			log.Printf("  [ok]   created raw material: %s (ID: %s)", coffeeBeans.Name, coffeeBeans.ID)
+			existingRM = coffeeBeans
+		}
+	} else {
+		log.Printf("  [skip] raw material already exists: %s", coffeeBeans.Name)
+	}
+
+	// Create recipe for Milk Coffee if it doesn't exist
+	milkCoffeeMenu := menuMap["Milk Coffee"]
+	if milkCoffeeMenu.ID != uuid.Nil && milkCoffeeMenu.IsRecipeBased {
+		var existingRecipe models.Recipe
+		recipeResult := db.Where("menu_id = ?", milkCoffeeMenu.ID).First(&existingRecipe)
+
+		if recipeResult.Error != nil {
+			// Create recipe with ingredients
+			recipe := models.Recipe{
+				MenuID:       milkCoffeeMenu.ID,
+				Instructions: "1. Grind 20g Arabica beans\n2. Brew double espresso\n3. Steam 100ml milk\n4. Combine",
+				Ingredients: []models.RecipeItem{
+					{
+						RawMaterialID: existingRM.ID,
+						Quantity:      20,
+					},
+				},
+			}
+
+			if err := db.Create(&recipe).Error; err != nil {
+				log.Printf("  [error] failed to create recipe: %v", err)
+			} else {
+				log.Printf("  [ok]   created recipe for: %s (ID: %s)", milkCoffeeMenu.Name, recipe.ID)
+			}
+		} else {
+			log.Printf("  [skip] recipe already exists for: %s", milkCoffeeMenu.Name)
+		}
+	}
+
+	// Create recipe for Iced Milk Coffee if it doesn't exist
+	icedMilkCoffeeMenu := menuMap["Iced Milk Coffee"]
+	if icedMilkCoffeeMenu.ID != uuid.Nil && icedMilkCoffeeMenu.IsRecipeBased {
+		var existingRecipe models.Recipe
+		recipeResult := db.Where("menu_id = ?", icedMilkCoffeeMenu.ID).First(&existingRecipe)
+
+		if recipeResult.Error != nil {
+			recipe := models.Recipe{
+				MenuID:       icedMilkCoffeeMenu.ID,
+				Instructions: "1. Grind 20g Arabica beans\n2. Brew double espresso\n3. Add ice\n4. Pour milk",
+				Ingredients: []models.RecipeItem{
+					{
+						RawMaterialID: existingRM.ID,
+						Quantity:      20,
+					},
+				},
+			}
+
+			if err := db.Create(&recipe).Error; err != nil {
+				log.Printf("  [error] failed to create recipe for iced milk coffee: %v", err)
+			} else {
+				log.Printf("  [ok]   created recipe for: %s (ID: %s)", icedMilkCoffeeMenu.Name, recipe.ID)
+			}
+		} else {
+			log.Printf("  [skip] recipe already exists for: %s", icedMilkCoffeeMenu.Name)
+		}
 	}
 
 	log.Println("Seeding Completed!")

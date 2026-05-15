@@ -9,7 +9,6 @@ import (
 	"github.com/Lapnes/pos-kopitiam/internal/repository"
 	"github.com/Lapnes/pos-kopitiam/internal/service"
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 
 	_ "github.com/Lapnes/pos-kopitiam/docs"
@@ -17,7 +16,10 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-func InitRoutes(router *gin.Engine, db *gorm.DB, redisClient *redis.Client, cfg *config.Config) {
+func InitRoutes(router *gin.Engine, db *gorm.DB, cfg *config.Config) {
+	// Initialize Redis for health check
+	redisClient := config.InitRedis(cfg)
+
 	// Repositories
 	userRepo := repository.NewUserRepo(db)
 	orderRepo := repository.NewOrderRepo(db)
@@ -26,10 +28,10 @@ func InitRoutes(router *gin.Engine, db *gorm.DB, redisClient *redis.Client, cfg 
 	inventoryRepo := repository.NewInventoryRepository(db)
 	analyticsRepo := repository.NewAnalyticsRepository(db)
 	menuRepo := repository.NewMenuRepository(db)
-	
+
 	// Services
 	authService := service.NewAuthService(userRepo, cfg)
-	orderService := service.NewOrderService(db, orderRepo, inventoryRepo, redisClient)
+	orderService := service.NewOrderService(db, orderRepo, inventoryRepo)
 	shiftService := service.NewShiftService(shiftRepo)
 	returnService := service.NewReturnService(db, returnRepo, orderRepo)
 	inventoryService := service.NewInventoryService(inventoryRepo)
@@ -37,7 +39,7 @@ func InitRoutes(router *gin.Engine, db *gorm.DB, redisClient *redis.Client, cfg 
 	printerService := service.NewPrinterService(orderRepo, userRepo)
 	menuService := service.NewMenuService(menuRepo)
 	employeeService := service.NewEmployeeService(userRepo)
-	
+
 	// Handlers
 	authHandler := handler.NewAuthHandler(authService)
 	orderHandler := handler.NewOrderHandler(orderService)
@@ -46,15 +48,30 @@ func InitRoutes(router *gin.Engine, db *gorm.DB, redisClient *redis.Client, cfg 
 	inventoryHandler := handler.NewInventoryHandler(inventoryService)
 	analyticsHandler := handler.NewAnalyticsHandler(analyticsService)
 	printerHandler := handler.NewPrinterHandler(printerService)
+	paymentHandler := handler.NewPaymentHandler(db)
 	menuHandler := handler.NewMenuHandler(menuService)
 	employeeHandler := handler.NewEmployeeHandler(employeeService)
 
-	// Health Check
+	// Health Check — includes Redis status
+	// HealthCheck godoc
+	// @Summary      System Health Check
+	// @Description  Returns status of DB and Redis connections.
+	// @Tags         System
+	// @Produce      json
+	// @Success      200 {object} map[string]interface{} "System is up"
+	// @Router       /health [get]
 	router.GET("/health", func(c *gin.Context) {
+		redisStatus := true
+		if redisClient != nil {
+			ctx := c.Request.Context()
+			if err := redisClient.Ping(ctx).Err(); err != nil {
+				redisStatus = false
+			}
+		}
 		c.JSON(http.StatusOK, gin.H{
 			"status": "up",
-			"redis":  redisClient.Ping(c).Val() == "PONG",
 			"db":     db.Error == nil,
+			"redis":  redisStatus,
 		})
 	})
 
@@ -62,7 +79,7 @@ func InitRoutes(router *gin.Engine, db *gorm.DB, redisClient *redis.Client, cfg 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	api := router.Group("/api/v1")
-	
+
 	// Public routes
 	auth := api.Group("/auth")
 	{
@@ -71,7 +88,7 @@ func InitRoutes(router *gin.Engine, db *gorm.DB, redisClient *redis.Client, cfg 
 		auth.POST("/refresh", authHandler.Refresh)
 		auth.POST("/logout", authHandler.Logout)
 	}
-	
+
 	// Protected routes
 	protected := api.Group("/")
 	protected.Use(middleware.AuthMiddleware(cfg.JWTSecret))
@@ -80,7 +97,8 @@ func InitRoutes(router *gin.Engine, db *gorm.DB, redisClient *redis.Client, cfg 
 	{
 		menus.GET("", menuHandler.GetActiveMenus)
 	}
-	
+
+	// Orders — flat structure with inline role checks per route
 	orders := protected.Group("/orders")
 	{
 		orders.POST("", orderHandler.CreateOrder)
@@ -89,23 +107,20 @@ func InitRoutes(router *gin.Engine, db *gorm.DB, redisClient *redis.Client, cfg 
 		orders.PUT("/:id", orderHandler.UpdateOrder)
 		orders.PUT("/:id/confirm", orderHandler.ConfirmOrder)
 		orders.PUT("/:id/cancel", orderHandler.CancelOrder)
-		
-		// Manager only routes
-		managerRoutes := orders.Group("/")
-		managerRoutes.Use(middleware.RoleMiddleware("superadmin", "manager"))
-		managerRoutes.POST("/:id/void-item", orderHandler.VoidItem)
-		managerRoutes.POST("/:id/void", orderHandler.VoidOrder)
+		orders.POST("/:id/payments", paymentHandler.ProcessPayment)
 
-		// Cashier allowed routes (returns and lookup)
-		cashierRoutes := orders.Group("/")
-		cashierRoutes.Use(middleware.RoleMiddleware("superadmin", "manager", "cashier"))
-		cashierRoutes.POST("/:id/returns", returnHandler.ProcessReturn)
-		cashierRoutes.GET("/by-number/:number", orderHandler.GetOrderByNumber)
+		// Manager-only: void and void-item
+		orders.POST("/:id/void", middleware.RoleMiddleware("manager"), orderHandler.VoidOrder)
+		orders.POST("/:id/void-item", middleware.RoleMiddleware("manager"), orderHandler.VoidItem)
+
+		// Cashier+Manager: returns and lookup
+		orders.POST("/:id/returns", middleware.RoleMiddleware("cashier", "manager"), returnHandler.ProcessReturn)
+		orders.GET("/by-number/:number", middleware.RoleMiddleware("cashier", "manager"), orderHandler.GetOrderByNumber)
 	}
 
 	// Shifts
 	shifts := protected.Group("/shifts")
-	shifts.Use(middleware.RoleMiddleware("cashier", "manager", "superadmin"))
+	shifts.Use(middleware.RoleMiddleware("cashier", "manager"))
 	{
 		shifts.POST("/open", shiftHandler.OpenShift)
 		shifts.GET("/current", shiftHandler.GetCurrentShift)
@@ -114,7 +129,7 @@ func InitRoutes(router *gin.Engine, db *gorm.DB, redisClient *redis.Client, cfg 
 
 	// Master Data
 	master := protected.Group("/master")
-	master.Use(middleware.RoleMiddleware("superadmin", "admin", "manager"))
+	master.Use(middleware.RoleMiddleware("manager"))
 	{
 		master.POST("/raw-materials", inventoryHandler.CreateRawMaterial)
 		master.PUT("/raw-materials/:id", inventoryHandler.UpdateRawMaterial)
@@ -129,7 +144,7 @@ func InitRoutes(router *gin.Engine, db *gorm.DB, redisClient *redis.Client, cfg 
 
 	// Employees
 	employees := protected.Group("/employees")
-	employees.Use(middleware.RoleMiddleware("superadmin", "manager"))
+	employees.Use(middleware.RoleMiddleware("manager"))
 	{
 		employees.GET("", employeeHandler.GetEmployees)
 		employees.POST("", employeeHandler.CreateEmployee)
@@ -139,7 +154,7 @@ func InitRoutes(router *gin.Engine, db *gorm.DB, redisClient *redis.Client, cfg 
 
 	// Analytics
 	analytics := protected.Group("/analytics")
-	analytics.Use(middleware.RoleMiddleware("superadmin", "manager"))
+	analytics.Use(middleware.RoleMiddleware("manager"))
 	{
 		analytics.GET("/sales-summary", analyticsHandler.GetSalesSummary)
 		analytics.GET("/best-sellers", analyticsHandler.GetBestSellers)
@@ -152,6 +167,4 @@ func InitRoutes(router *gin.Engine, db *gorm.DB, redisClient *redis.Client, cfg 
 		printers.GET("/receipt/:id", printerHandler.GetReceiptPayload)
 		printers.GET("/kitchen/:id", printerHandler.GetKitchenTicketPayload)
 	}
-
-	// Additional feature groups (payments, KDS, reservations, etc.) would be added here similarly.
 }

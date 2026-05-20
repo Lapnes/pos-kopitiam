@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Katalog Menu — KopiTiam POS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./global.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        outfit: ['Outfit', 'sans-serif']
+                    },
+                    colors: {
+                        kopitiam: {
+                            50: '#fdf8f6', 100: '#f2e5df', 200: '#e5ccbf',
+                            300: '#d8b29f', 400: '#cb997e', 500: '#b76e53',
+                            600: '#a05c43', 700: '#894b34', 800: '#713b27', 900: '#5a2d1d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+        }
+        .catalog-container {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .menu-grid {
+            height: calc(100vh - 130px);
+            overflow-y: auto;
+        }
+        .cart-sidebar {
+            border-left: 1px solid var(--border-color);
+            background: var(--bg-card);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .cart-items {
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+        .bestseller-badge {
+            background: linear-gradient(135deg, #ff9f43, #ff5252);
+            color: white;
+            box-shadow: 0 4px 10px rgba(255, 82, 82, 0.3);
+        }
+        .menu-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            transition: all var(--transition-fast);
+        }
+        .menu-card:hover {
+            border-color: var(--kt-500, #b76e53);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+        }
+        .glassmorphism {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        .active-payment-btn {
+            border-color: #b76e53 !important;
+            background-color: #fdf8f6 !important;
+            color: #b76e53 !important;
+        }
+    </style>
+    <!-- Midtrans Snap dynamic loader -->
+    <script src="./midtrans-loader.js"></script>
+</head>
+<body class="light">
+    <div class="catalog-container">
+        <!-- Main Catalog Panel (Left side) -->
+        <div class="flex flex-col h-full bg-[#fafaf9]">
+            <!-- Header bar -->
+            <div class="p-6 bg-white border-b border-gray-100 flex items-center justify-between shadow-sm">
+                <div>
+                    <h1 class="text-2xl font-bold font-outfit text-gray-800 flex items-center gap-2">
+                        ☕ KopiTiam Digital Catalog
+                    </h1>
+                    <p class="text-xs text-gray-400 mt-0.5">Pilih menu favorit Anda dan lakukan pembayaran instan</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-xs font-semibold border border-emerald-100 flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span>
+                        Tablet Active Connection
+                    </span>
+                </div>
+            </div>
+
+            <!-- Categories Horizontal Scroll -->
+            <div class="p-4 bg-white border-b border-gray-50 flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-none" id="categories-container">
+                <button class="px-4 py-2 rounded-xl text-sm font-medium bg-kopitiam-500 text-white shadow-sm" id="cat-all">
+                    Semua Menu
+                </button>
+                <!-- Dynamically populated categories -->
+            </div>
+
+            <!-- Menu Grid -->
+            <div class="p-6 menu-grid">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="menu-items-grid">
+                    <!-- Dynamic Menu Cards -->
+                    <div class="col-span-full py-12 text-center text-gray-400 text-sm">
+                        Memuat daftar menu...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Checkout & Cart Panel (Right side) -->
+        <div class="cart-sidebar">
+            <div class="p-4 border-b border-gray-100 bg-white flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <h2 class="text-lg font-bold font-outfit text-gray-800">Keranjang Belanja</h2>
+                    <span class="bg-kopitiam-100 text-kopitiam-700 px-2.5 py-0.5 rounded-full text-xs font-bold" id="cart-badge">0</span>
+                </div>
+                <button class="text-xs text-red-500 font-semibold hover:text-red-600 transition" id="clear-cart-btn">
+                    Reset Cart
+                </button>
+            </div>
+
+            <!-- Cart Items list -->
+            <div class="cart-items p-4 space-y-3 bg-[#fafafa]" id="cart-list">
+                <div class="flex flex-col items-center justify-center h-full text-gray-400 text-center p-6">
+                    <span class="text-4xl mb-2">🛒</span>
+                    <p class="text-sm font-medium">Keranjang masih kosong</p>
+                    <p class="text-xs mt-1 text-gray-400">Pilih menu di sebelah kiri untuk ditambahkan</p>
+                </div>
+            </div>
+
+            <!-- Billing details & Checkout Trigger -->
+            <div class="p-4 border-t border-gray-100 bg-white space-y-4 shadow-[0_-4px_12px_rgba(0,0,0,0.02)]">
+                <div class="space-y-1.5 text-xs text-gray-500">
+                    <div class="flex justify-between">
+                        <span>Subtotal</span>
+                        <span class="font-semibold text-gray-700" id="subtotal-val">Rp 0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Pajak (10%)</span>
+                        <span class="font-semibold text-gray-700" id="tax-val">Rp 0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Biaya Layanan</span>
+                        <span class="font-semibold text-gray-700" id="service-val">Rp 0</span>
+                    </div>
+                    <div class="border-t border-dashed border-gray-100 my-2 pt-2 flex justify-between text-base font-bold text-gray-800">
+                        <span>Total Bayar</span>
+                        <span class="text-kopitiam-700" id="total-val">Rp 0</span>
+                    </div>
+                </div>
+
+                <!-- Input Nomor Meja -->
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-gray-600 uppercase tracking-wider block" for="table-number-input">Nomor Meja</label>
+                    <input type="text" id="table-number-input" placeholder="Masukkan nomor meja (contoh: 5)" class="w-full text-sm bg-gray-50 border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-kopitiam-500 focus:bg-white transition" required>
+                </div>
+
+                <!-- Payment Selection -->
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-gray-600 uppercase tracking-wider block">Metode Pembayaran</label>
+                    <button type="button" class="w-full py-3 px-4 border border-kopitiam-500 bg-kopitiam-50/20 rounded-xl text-left flex items-center justify-between transition" id="pay-online" data-method="online">
+                        <div class="flex items-center gap-3">
+                            <span class="text-lg">💳</span>
+                            <div class="flex flex-col">
+                                <span class="text-xs font-bold text-gray-800">Online / Midtrans</span>
+                                <span class="text-[10px] text-gray-400">QRIS, VA Bank, GoPay, Card</span>
+                            </div>
+                        </div>
+                        <span class="text-kopitiam-600 text-xs font-bold">✓ Terpilih</span>
+                    </button>
+                </div>
+
+                <!-- Action Button -->
+                <button class="w-full bg-kopitiam-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-kopitiam-100 hover:bg-kopitiam-600 transition flex items-center justify-center gap-2 active:scale-[0.98]" id="checkout-btn" disabled>
+                    Bayar Sekarang
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Screen Overlay -->
+    <div class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center p-6 hidden animate-fade-in" id="success-overlay">
+        <div class="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-5xl mb-6 shadow-lg border border-emerald-200">
+            ✓
+        </div>
+        <h2 class="text-3xl font-bold font-outfit text-gray-800">Pembayaran Berhasil!</h2>
+        <p class="text-gray-500 mt-2 max-w-sm text-center">Pesanan Anda telah masuk ke sistem dapur. Silakan tunggu nomor antrean Anda dipanggil.</p>
+        <div class="mt-8 text-xs text-gray-400">Kembali ke katalog otomatis dalam <span class="font-bold text-gray-600" id="countdown-val">4</span> detik...</div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex flex-col items-center justify-center p-6 hidden" id="loading-overlay">
+        <div class="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4"></div>
+        <p class="text-white font-medium text-sm" id="loading-message">Menghubungkan ke Midtrans Snap...</p>
+    </div>
+
+    <script src="./catalog.js"></script>
+</body>
+</html>

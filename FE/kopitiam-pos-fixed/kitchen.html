@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kitchen Display — KopiTiam POS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./global.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+                    colors: {
+                        kopitiam: {
+                            50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0',
+                            300: '#86efac', 400: '#4ade80', 500: '#22c55e',
+                            600: '#16a34a', 700: '#15803d', 800: '#166534', 900: '#14532d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .sidebar-link {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.625rem 0.875rem;
+            border-radius: var(--radius-lg);
+            font-size: 0.875rem; font-weight: 500;
+            color: var(--text-secondary);
+            transition: all var(--transition-fast);
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .sidebar-link:hover {
+            background: rgba(255,255,255,0.05);
+            color: #f9fafb;
+        }
+        .sidebar-link.active {
+            background: linear-gradient(135deg, var(--kt-700) 0%, var(--kt-800) 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+        }
+        .order-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
+            padding: 1rem;
+            transition: all var(--transition-fast);
+            border-left: 4px solid var(--kt-500);
+        }
+        .order-card:hover {
+            box-shadow: 0 4px 16px var(--shadow-color);
+        }
+        .order-card.status-pending { border-left-color: #f59e0b; }
+        .order-card.status-preparing { border-left-color: #3b82f6; }
+        .order-card.status-ready { border-left-color: #22c55e; }
+        .order-card.status-completed { border-left-color: #6b7280; opacity: 0.7; }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .status-badge.pending { background: #fef3c7; color: #92400e; }
+        .status-badge.preparing { background: #dbeafe; color: #1e40af; }
+        .status-badge.ready { background: #dcfce7; color: #166534; }
+        .status-badge.completed { background: #f3f4f6; color: #4b5563; }
+
+        .timer {
+            font-variant-numeric: tabular-nums;
+            font-family: 'Courier New', monospace;
+        }
+        .timer.urgent { color: #ef4444; animation: pulse 1s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .kds-btn {
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius-lg);
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: all 0.15s;
+            cursor: pointer;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+        .kds-btn-primary {
+            background: var(--kt-500);
+            color: white;
+        }
+        .kds-btn-primary:hover { background: var(--kt-600); }
+        .kds-btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+        .kds-btn-secondary:hover { background: var(--gray-100); }
+        .kds-btn-success {
+            background: #22c55e;
+            color: white;
+        }
+        .kds-btn-success:hover { background: #16a34a; }
+    </style>
+</head>
+<body class="bg-[var(--bg-primary)] text-[var(--text-primary)] min-h-screen">
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
+
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="fixed lg:sticky top-0 left-0 z-50 w-64 h-screen bg-[var(--bg-sidebar)] text-gray-300 flex flex-col -translate-x-full lg:translate-x-0 transition-transform duration-300">
+            <div class="p-5 border-b border-white/5">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-kopitiam-500 to-kopitiam-700 flex items-center justify-center shadow-lg shadow-green-500/20">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-white font-bold text-sm leading-tight">KopiTiam POS</h1>
+                        <p class="text-xs text-gray-500">Kitchen Display</p>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+                <div class="px-3 mb-2">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-gray-500">Operations</span>
+                </div>
+                <a id="link-cashier" href="./cashier.html" class="sidebar-link hidden">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                    Cashier Panel
+                </a>
+                <a id="link-kds" onclick="switchKitchenTab('orders')" class="sidebar-link active">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                    Kitchen Display
+                </a>
+                <a id="link-menu" onclick="switchKitchenTab('menu')" class="sidebar-link">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+                    Menu Availability
+                </a>
+                <a id="link-stock" onclick="switchKitchenTab('stock')" class="sidebar-link">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                    Stock & Estimation
+                </a>
+            </nav>
+
+            <div class="p-3 border-t border-white/5 space-y-1">
+                <button id="btn-dark-mode" class="sidebar-link w-full">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                    Dark Mode
+                </button>
+                <button id="btn-logout" class="sidebar-link w-full text-red-400 hover:text-red-300 hover:bg-red-500/10">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                    Logout
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 min-w-0 p-4 lg:p-6">
+            <header class="flex items-center justify-between mb-6">
+                <div>
+                    <h2 class="text-xl font-bold text-[var(--text-primary)] flex items-center gap-2">
+                        <span class="text-2xl">👨‍🍳</span> Kitchen Display
+                    </h2>
+                    <p class="text-sm text-[var(--text-secondary)]">Manage incoming orders in real-time</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl px-3 py-2">
+                        <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                        <span id="connection-status" class="text-xs font-medium text-[var(--text-secondary)]">Live</span>
+                    </div>
+                    <div class="hidden md:flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-kopitiam-500 to-kopitiam-700 flex items-center justify-center text-white text-xs font-bold">
+                            <span id="user-initial">K</span>
+                        </div>
+                        <div>
+                            <p id="user-name" class="text-sm font-semibold text-[var(--text-primary)] leading-tight">Kitchen</p>
+                            <p id="user-role" class="text-xs text-[var(--text-secondary)]">Kitchen Staff</p>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Orders View (Default) -->
+            <div id="orders-view" class="space-y-6">
+                <!-- Stats Bar -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-3 text-center">
+                        <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider">Terima Pesanan</p>
+                        <p id="count-pending" class="text-2xl font-bold text-amber-600 mt-1">0</p>
+                    </div>
+                    <div class="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-3 text-center">
+                        <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider">Proses Pesanan</p>
+                        <p id="count-preparing" class="text-2xl font-bold text-blue-600 mt-1">0</p>
+                    </div>
+                    <div class="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-3 text-center">
+                        <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider">Pesanan Selesai</p>
+                        <p id="count-ready" class="text-2xl font-bold text-green-600 mt-1">0</p>
+                    </div>
+                    <div class="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-3 text-center">
+                        <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wider">Selesai</p>
+                        <p id="count-completed" class="text-2xl font-bold text-gray-500 mt-1">0</p>
+                    </div>
+                </div>
+
+                <!-- Filter Tabs -->
+                <div class="flex gap-2 overflow-x-auto pb-2">
+                    <button class="category-btn active" data-filter="all">Semua Pesanan</button>
+                    <button class="category-btn" data-filter="pending">🟡 Terima Pesanan</button>
+                    <button class="category-btn" data-filter="preparing">🔵 Proses Pesanan</button>
+                    <button class="category-btn" data-filter="ready">🟢 Pesanan Selesai</button>
+                </div>
+
+                <!-- Orders Grid -->
+                <div id="orders-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    <div class="col-span-full py-12 text-center text-[var(--text-secondary)]">
+                        <div class="kt-spinner mx-auto mb-3"></div>
+                        <p class="text-sm font-medium">Loading orders...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stock View (Hidden by default) -->
+            <div id="stock-view" class="hidden space-y-6">
+                <div class="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-6 shadow-sm">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                        <div>
+                            <h3 class="text-lg font-bold text-[var(--text-primary)]">📦 Stock & Daily Estimation</h3>
+                            <p class="text-xs text-[var(--text-secondary)] mt-0.5">Real-time inventory and estimated daily adequacy calculation for ingredients</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="text" id="stock-search" placeholder="Search materials..." class="w-full sm:w-64 px-4 py-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] text-sm outline-none focus:border-kopitiam-500 transition-all" oninput="searchMaterials()">
+                            <button onclick="loadStockData()" class="px-4 py-2 bg-gradient-to-br from-kopitiam-500 to-kopitiam-700 text-white font-semibold text-sm rounded-xl hover:shadow-lg transition-all flex items-center gap-1.5 whitespace-nowrap">
+                                🔄 Refresh Stock
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Material Stock Table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-[var(--border-color)] text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] bg-gray-50/50">
+                                    <th class="py-3 px-4">Material Name</th>
+                                    <th class="py-3 px-4">Current Stock</th>
+                                    <th class="py-3 px-4">Min Stock</th>
+                                    <th class="py-3 px-4">Estimated Daily Required</th>
+                                    <th class="py-3 px-4">Sufficiency</th>
+                                    <th class="py-3 px-4">Shortage</th>
+                                    <th class="py-3 px-4">Unit</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stock-table-body" class="divide-y divide-[var(--border-color)]">
+                                <tr>
+                                    <td colspan="7" class="py-8 text-center text-xs text-[var(--text-muted)]">
+                                        <div class="kt-spinner mx-auto mb-2"></div>
+                                        Loading inventory...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Menu View (Hidden by default) -->
+            <div id="menu-view" class="hidden space-y-6">
+                <div class="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-6 shadow-sm">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                        <div>
+                            <h3 class="text-lg font-bold text-[var(--text-primary)]">📋 Menu Availability Management</h3>
+                            <p class="text-xs text-[var(--text-secondary)] mt-0.5">Toggle menu items active/inactive for Cashier Terminal</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="text" id="menu-search" placeholder="Search menu items..." class="w-full sm:w-64 px-4 py-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] text-sm outline-none focus:border-kopitiam-500 transition-all" oninput="searchMenus()">
+                            <button onclick="loadMenuData()" class="px-4 py-2 bg-gradient-to-br from-kopitiam-500 to-kopitiam-700 text-white font-semibold text-sm rounded-xl hover:shadow-lg transition-all flex items-center gap-1.5 whitespace-nowrap">
+                                🔄 Refresh Menu
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-[var(--border-color)] text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] bg-gray-50/50">
+                                    <th class="py-3 px-4">Menu Name</th>
+                                    <th class="py-3 px-4">Categories</th>
+                                    <th class="py-3 px-4">Price</th>
+                                    <th class="py-3 px-4">Daily Stock Target</th>
+                                    <th class="py-3 px-4">Recipe Based</th>
+                                    <th class="py-3 px-4">Status</th>
+                                    <th class="py-3 px-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="menu-table-body" class="divide-y divide-[var(--border-color)]">
+                                <tr>
+                                    <td colspan="7" class="py-8 text-center text-xs text-[var(--text-muted)]">
+                                        <div class="kt-spinner mx-auto mb-2"></div>
+                                        Loading menus...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="./kitchen.js"></script>
+</body>
+</html>

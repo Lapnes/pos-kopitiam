@@ -18,7 +18,7 @@ vendor/
 # Go workspace file
 go.work
 go.sum
-docs/
+
 docs/docs.go
 docs/swagger.json
 docs/swagger.yaml
@@ -89,4 +89,11 @@ logs/
 local/
 .local/
 
+.gemini/
+.config/
+.go_path/
+.go_cache/
+backup/
 
+mysql_data/
+mysql_data_custom/

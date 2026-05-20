@@ -1,0 +1,532 @@
+### ============================================================
+### POS KopiTiam - VS Code REST Client API Testing
+### Refactored: 3 Roles, Normalized Payments, M2M Categories
+### ============================================================
+### Cara pakai:
+### 1. Install extension "REST Client" (humao.rest-client)
+### 2. Buka file ini di VS Code
+### 3. Klik "Send Request" di atas setiap block
+### 4. Variable otomatis tersimpan antar request
+### ============================================================
+### NOTE: Jalankan dalam urutan yang ditentukan!
+### Seed credentials (3 core roles only):
+###   manager@kopitiam.id  / password123 / PIN 111111
+###   cashier@kopitiam.id  / password123 / PIN 222222
+###   kitchen@kopitiam.id  / password123 / PIN 333333
+### ============================================================
+
+
+### ─────────────────────────────────────────────────────────────
+### PHASE 1: HEALTH & AUTH
+### ─────────────────────────────────────────────────────────────
+
+### 1.1 Health Check
+# @name healthCheck
+GET http://localhost:8080/health
+
+
+### 1.2 Login Manager (email + password)
+# @name loginManager
+POST http://localhost:8080/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "manager@kopitiam.id",
+  "password": "password123"
+}
+
+### 1.3 Login Cashier (email + password)
+# @name loginCashierEmail
+POST http://localhost:8080/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "cashier@kopitiam.id",
+  "password": "password123"
+}
+
+### 1.4 Login Cashier (PIN – quick login at terminal)
+# @name loginCashier
+POST http://localhost:8080/api/v1/auth/login-pin
+Content-Type: application/json
+
+{
+  "pin": "222222"
+}
+
+### 1.5 Login Kitchen (PIN)
+# @name loginKitchen
+POST http://localhost:8080/api/v1/auth/login-pin
+Content-Type: application/json
+
+{
+  "pin": "333333"
+}
+
+
+### ─────────────────────────────────────────────────────────────
+### PHASE 2: MENUS (Many-to-Many categories)
+### ─────────────────────────────────────────────────────────────
+
+### 2.1 Get Active Menus
+### Response includes "categories" array (M2M) instead of single category_id
+# @name getMenus
+GET http://localhost:8080/api/v1/menus
+Authorization: Bearer {{loginManager.response.body.data.access_token}}
+
+
+### ─────────────────────────────────────────────────────────────
+### PHASE 3: ORDERS (Dine In) — Full lifecycle
+### ─────────────────────────────────────────────────────────────
+### NOTE: Totals (subtotal, tax_amount, service_charge, total) are calculated
+###       server-side by CalculateOrderTotals(). Do NOT send them in the request.
+### ─────────────────────────────────────────────────────────────
+
+### 3.1 Create Order (Dine In)
+# @name createOrderDineIn
+POST http://localhost:8080/api/v1/orders
+Authorization: Bearer {{loginCashier.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "table_id": "",
+  "customer_id": "",
+  "order_type": "dine_in",
+  "notes": "Less sugar, extra ice",
+  "discount_amount": 0,
+  "items": [
+    {
+      "menu_id": "{{getMenus.response.body.data[0].id}}",
+      "menu_name": "{{getMenus.response.body.data[0].name}}",
+      "quantity": 2,
+      "price": {{getMenus.response.body.data[0].price}},
+      "notes": "Hot"
+    },
+    {
+      "menu_id": "{{getMenus.response.body.data[4].id}}",
+      "menu_name": "{{getMenus.response.body.data[4].name}}",
+      "quantity": 1,
+      "price": {{getMenus.response.body.data[4].price}},
+      "notes": ""
+    }
+  ]
+}
+
+### 3.2 Get All Orders
+# @name getAllOrders
+GET http://localhost:8080/api/v1/orders
+Authorization: Bearer {{loginManager.response.body.data.access_token}}
+
+### 3.3 Get Order by ID
+# @name getOrderById
+GET http://localhost:8080/api/v1/orders/{{createOrderDineIn.response.body.data.id}}
+Authorization: Bearer {{loginManager.response.body.data.access_token}}
+
+### 3.4 Get Order by Number
+# @name getOrderByNumber
+GET http://localhost:8080/api/v1/orders/by-number/{{createOrderDineIn.response.body.data.order_number}}
+Authorization: Bearer {{loginCashier.response.body.data.access_token}}
+
+### 3.5 Confirm Order (Deduct stock — branches on Menu.is_recipe_based)
+# @name confirmOrder
+PATCH http://localhost:8080/api/v1/orders/{{createOrderDineIn.response.body.data.id}}/confirm
+Authorization: Bearer {{loginCashier.response.body.data.access_token}}
+
+### 3.6 Update Order Notes
+# @name updateOrder
+PATCH http://localhost:8080/api/v1/orders/{{createOrderDineIn.response.body.data.id}}/notes
+Authorization: Bearer {{loginCashier.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "notes": "Customer requests extra napkins"
+}
+
+
+### ─────────────────────────────────────────────────────────────
+### PHASE 4: PAYMENT (Normalized — Split-based)
+### ─────────────────────────────────────────────────────────────
+### Payment model is normalized: the Payment header now only stores
+### change_amount and status. Per-method details live in the splits array.
+###
+### Endpoint: POST /api/v1/payments?order_id={order_id}
+### Payload:
+###   - change_amount: float
+###   - splits: array of { payment_method, amount, reference_number? }
+###
+### Supported payment_method values:
+###   cash | qris | debit_card | credit_card | transfer | e_wallet
+### ─────────────────────────────────────────────────────────────
+
+### 4.1 Process Payment — Full Cash (Single Method)
+# @name paymentCash
+POST http://localhost:8080/api/v1/payments?order_id={{createOrderDineIn.response.body.data.id}}
+Authorization: Bearer {{loginCashier.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "change_amount": 29070,
+  "splits": [
+    {
+      "payment_method": "cash",
+      "amount": 100000
+    }
+  ]
+}
+
+### 4.2 Process Payment — QRIS (Cashless)
+# @name paymentQRIS
+POST http://localhost:8080/api/v1/payments?order_id={{createOrderDineIn.response.body.data.id}}
+Authorization: Bearer {{loginCashier.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "change_amount": 0,
+  "splits": [
+    {
+      "payment_method": "qris",
+      "amount": 70930,
+      "reference_number": "QRIS-20260514-001"
+    }
+  ]
+}
+
+### 4.3 Process Payment — Split (Cash + QRIS)
+### Customer pays part cash, part QRIS
+# @name paymentSplit
+POST http://localhost:8080/api/v1/payments?order_id={{createOrderDineIn.response.body.data.id}}
+Authorization: Bearer {{loginCashier.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "change_amount": 0,
+  "splits": [
+    {
+      "payment_method": "cash",
+      "amount": 50000
+    },
+    {
+      "payment_method": "qris",
+      "amount": 20930,
+      "reference_number": "QRIS-20260514-002"
+    }
+  ]
+}
+
+
+### ─────────────────────────────────────────────────────────────
+### PHASE 5: ORDERS (Takeaway — for Cancel/Void tests)
+### ─────────────────────────────────────────────────────────────
+
+### 5.1 Create Order (Takeaway)
+# @name createOrderTakeaway
+POST http://localhost:8080/api/v1/orders
+Authorization: Bearer {{loginCashier.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "table_id": "",
+  "customer_id": "",
+  "order_type": "takeaway",
+  "notes": "Packaging separate",
+  "discount_amount": 5000,
+  "items": [
+    {
+      "menu_id": "{{getMenus.response.body.data[1].id}}",
+      "menu_name": "{{getMenus.response.body.data[1].name}}",
+      "quantity": 1,
+      "price": {{getMenus.response.body.data[1].price}},
+      "notes": ""
+    }
+  ]
+}
+
+### 5.2 Cancel Order (Cashier can cancel pending orders)
+# @name cancelOrder
+PATCH http://localhost:8080/api/v1/orders/{{createOrderTakeaway.response.body.data.id}}/cancel
+Authorization: Bearer {{loginCashier.response.body.data.access_token}}
+
+### 5.3 Void Order (Manager Only)
+# @name voidOrder
+PATCH http://localhost:8080/api/v1/orders/{{createOrderTakeaway.response.body.data.id}}/void
+Authorization: Bearer {{loginManager.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "reason": "Customer walked away before pickup"
+}
+
+### 5.4 Void Line Item (Manager Only)
+# @name voidItem
+PATCH http://localhost:8080/api/v1/orders/{{createOrderDineIn.response.body.data.id}}/void-item
+Authorization: Bearer {{loginManager.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "order_detail_id": "{{createOrderDineIn.response.body.data.order_details[0].id}}",
+  "reason": "Customer changed mind"
+}
+
+
+### ─────────────────────────────────────────────────────────────
+### PHASE 6: RETURNS (Harus setelah order confirmed)
+### ─────────────────────────────────────────────────────────────
+
+### 6.1 Process Return (Cashier or Manager)
+# @name processReturn
+POST http://localhost:8080/api/v1/returns?order_id={{createOrderDineIn.response.body.data.id}}&processed_by={{loginCashier.response.body.data.user.id}}
+Authorization: Bearer {{loginCashier.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "return_amount": 18000,
+  "reason": "Wrong order — customer wanted tea not coffee"
+}
+
+
+### ─────────────────────────────────────────────────────────────
+### PHASE 7: SHIFTS
+### ─────────────────────────────────────────────────────────────
+
+### 7.1 Open Shift
+# @name openShift
+POST http://localhost:8080/api/v1/shifts/open
+Authorization: Bearer {{loginCashier.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "opening_cash": 500000
+}
+
+### 7.2 Get Current Shift
+# @name getCurrentShift
+GET http://localhost:8080/api/v1/shifts/current
+Authorization: Bearer {{loginCashier.response.body.data.access_token}}
+
+### 7.3 Close Shift
+# @name closeShift
+PATCH http://localhost:8080/api/v1/shifts/close
+Authorization: Bearer {{loginCashier.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "actual_closing_cash": 525000
+}
+
+
+### ─────────────────────────────────────────────────────────────
+### PHASE 8: MASTER DATA — RAW MATERIALS (Manager Only)
+### ─────────────────────────────────────────────────────────────
+
+### 8.1 Create Raw Material
+# @name createRawMaterial
+POST http://localhost:8080/api/v1/inventory/raw-materials
+Authorization: Bearer {{loginManager.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "name": "Arabica Coffee Beans",
+  "unit": "gram",
+  "current_stock": 5000,
+  "min_stock_level": 500,
+  "cost_per_unit": 150
+}
+
+### 8.2 Get Raw Material
+# @name getRawMaterial
+GET http://localhost:8080/api/v1/inventory/raw-materials/{{createRawMaterial.response.body.data.id}}
+Authorization: Bearer {{loginManager.response.body.data.access_token}}
+
+### 8.3 Update Raw Material
+# @name updateRawMaterial
+PUT http://localhost:8080/api/v1/inventory/raw-materials/{{createRawMaterial.response.body.data.id}}
+Authorization: Bearer {{loginManager.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "name": "Arabica Coffee Beans (Premium)",
+  "unit": "gram",
+  "current_stock": 4500,
+  "min_stock_level": 500,
+  "cost_per_unit": 175
+}
+
+### 8.4 Delete Raw Material
+# @name deleteRawMaterial
+DELETE http://localhost:8080/api/v1/inventory/raw-materials/{{createRawMaterial.response.body.data.id}}
+Authorization: Bearer {{loginManager.response.body.data.access_token}}
+
+
+### ─────────────────────────────────────────────────────────────
+### PHASE 9: MASTER DATA — RECIPES / BOM (Manager Only)
+### ─────────────────────────────────────────────────────────────
+### NOTE: Menu index [0] = Kopi Susu (Bar station)
+###       Menu index [4] = Nasi Lemak (Kitchen station)
+###       Set is_recipe_based = true on the Menu before creating a Recipe.
+### ─────────────────────────────────────────────────────────────
+
+### 9.1 Create Recipe (BOM) — linked to menu[0]
+# @name createRecipe
+POST http://localhost:8080/api/v1/inventory/recipes
+Authorization: Bearer {{loginManager.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "menu_id": "{{getMenus.response.body.data[0].id}}",
+  "ingredients": [
+    {
+      "raw_material_id": "{{createRawMaterial.response.body.data.id}}",
+      "quantity": 20
+    }
+  ]
+}
+
+### 9.2 Get Recipe by Menu ID
+# @name getRecipeByMenuId
+GET http://localhost:8080/api/v1/inventory/recipes/{{getMenus.response.body.data[0].id}}
+Authorization: Bearer {{loginManager.response.body.data.access_token}}
+
+### 9.3 Update Recipe
+# @name updateRecipe
+PUT http://localhost:8080/api/v1/inventory/recipes/{{createRecipe.response.body.data.id}}
+Authorization: Bearer {{loginManager.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "menu_id": "{{getMenus.response.body.data[0].id}}",
+  "ingredients": [
+    {
+      "raw_material_id": "{{createRawMaterial.response.body.data.id}}",
+      "quantity": 25
+    }
+  ]
+}
+
+### 9.4 Delete Recipe
+# @name deleteRecipe
+DELETE http://localhost:8080/api/v1/inventory/recipes/{{createRecipe.response.body.data.id}}
+Authorization: Bearer {{loginManager.response.body.data.access_token}}
+
+
+### ─────────────────────────────────────────────────────────────
+### PHASE 10: EMPLOYEES (Manager Only)
+### ─────────────────────────────────────────────────────────────
+### NOTE: Roles allowed → manager | cashier | kitchen
+### ─────────────────────────────────────────────────────────────
+
+### 10.1 Get All Employees
+# @name getEmployees
+GET http://localhost:8080/api/v1/employees
+Authorization: Bearer {{loginManager.response.body.data.access_token}}
+
+### 10.2 Create Employee
+# @name createEmployee
+POST http://localhost:8080/api/v1/employees
+Authorization: Bearer {{loginManager.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "branch_id": "{{loginManager.response.body.data.user.branch_id}}",
+  "name": "Test Cashier API",
+  "email": "testcashier_api@kopitiam.id",
+  "password": "password123",
+  "pin_code": "555555",
+  "role": "cashier",
+  "is_active": true
+}
+
+### 10.3 Update Employee
+# @name updateEmployee
+PUT http://localhost:8080/api/v1/employees/{{createEmployee.response.body.data.id}}
+Authorization: Bearer {{loginManager.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "name": "Test Cashier (Updated)",
+  "role": "cashier",
+  "is_active": true
+}
+
+### 10.4 Delete Employee
+# @name deleteEmployee
+DELETE http://localhost:8080/api/v1/employees/{{createEmployee.response.body.data.id}}
+Authorization: Bearer {{loginManager.response.body.data.access_token}}
+
+
+### ─────────────────────────────────────────────────────────────
+### PHASE 11: ANALYTICS (Manager Only)
+### ─────────────────────────────────────────────────────────────
+
+### 11.1 Sales Summary (This Month)
+# @name salesSummary
+GET http://localhost:8080/api/v1/analytics/sales-summary?start_date=2026-05-01&end_date=2026-05-31
+Authorization: Bearer {{loginManager.response.body.data.access_token}}
+
+### 11.2 Best Sellers (Top 5)
+# @name bestSellers
+GET http://localhost:8080/api/v1/analytics/best-sellers?limit=5
+Authorization: Bearer {{loginManager.response.body.data.access_token}}
+
+### 11.3 Return Impact Report
+# @name returnImpact
+GET http://localhost:8080/api/v1/analytics/return-impact
+Authorization: Bearer {{loginManager.response.body.data.access_token}}
+
+### 11.4 COGS Report
+# @name cogsReport
+GET http://localhost:8080/api/v1/analytics/cogs?start_date=2026-05-01&end_date=2026-05-31
+Authorization: Bearer {{loginManager.response.body.data.access_token}}
+
+
+### ─────────────────────────────────────────────────────────────
+### PHASE 12: PRINTERS / RECEIPT
+### ─────────────────────────────────────────────────────────────
+### NOTE: Receipt payload iterates payment.splits for method/amount
+###       since those fields were normalized out of the Payment header.
+### ─────────────────────────────────────────────────────────────
+
+### 12.1 Generate Receipt Payload (Cashier)
+# @name generateReceipt
+GET http://localhost:8080/api/v1/printer/receipt/{{createOrderDineIn.response.body.data.id}}
+Authorization: Bearer {{loginCashier.response.body.data.access_token}}
+
+### 12.2 Generate Kitchen Ticket (Kitchen)
+# @name generateKitchenTicket
+GET http://localhost:8080/api/v1/printer/kitchen-ticket/{{createOrderDineIn.response.body.data.id}}
+Authorization: Bearer {{loginKitchen.response.body.data.access_token}}
+
+
+### ============================================================
+### TESTING SCENARIOS
+### ============================================================
+###
+### SCENARIO A: Full Order Lifecycle (Dine In + Cash Payment)
+###   1.1 → 1.2 → 2.1 → 3.1 → 3.5 → 4.1 → 12.1 → 12.2
+###   Result: Order created → confirmed (stock deducted) → paid → receipt
+###
+### SCENARIO B: Split Payment
+###   1.2 → 2.1 → 3.1 → 3.5 → 4.3 → 12.1
+###   Result: Order paid via Cash + QRIS split
+###
+### SCENARIO C: Cancel / Void
+###   1.2 → 2.1 → 5.1 → 5.2  (cancel by cashier)
+###   1.2 → 2.1 → 5.1 → 5.3  (void by manager)
+###
+### SCENARIO D: Return after Confirmed Order
+###   (after SCENARIO A) → 6.1
+###   Result: Partial refund processed
+###
+### SCENARIO E: Shift Management
+###   1.4 → 7.1 → 7.2 → 7.3
+###   Result: Shift opened, inspected, closed with variance
+###
+### SCENARIO F: Inventory & BOM (Recipe-based menu)
+###   1.2 → 8.1 → 9.1 → 9.2 → 9.3 → 9.4 → 8.4
+###   Result: Raw material + Recipe CRUD; ConfirmOrder will use
+###           pessimistic locking to deduct raw materials.
+###
+### SCENARIO G: Employee CRUD
+###   1.2 → 10.1 → 10.2 → 10.3 → 10.4
+###   Roles: manager | cashier | kitchen  (superadmin removed)
+###
+### ============================================================

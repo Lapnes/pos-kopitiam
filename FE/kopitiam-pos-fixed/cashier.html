@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cashier — KopiTiam POS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./global.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+                    colors: {
+                        kopitiam: {
+                            50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0',
+                            300: '#86efac', 400: '#4ade80', 500: '#22c55e',
+                            600: '#16a34a', 700: '#15803d', 800: '#166534', 900: '#14532d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .menu-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
+            transition: all var(--transition-fast);
+            cursor: pointer;
+        }
+        .menu-card:hover {
+            border-color: var(--kt-500);
+            box-shadow: 0 4px 12px var(--shadow-color);
+            transform: translateY(-2px);
+        }
+        .menu-card:active {
+            transform: scale(0.98);
+        }
+        .order-item {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+        .category-btn {
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius-lg);
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all var(--transition-fast);
+            cursor: pointer;
+            border: none;
+            white-space: nowrap;
+        }
+        .category-btn.active {
+            background: var(--kt-500);
+            color: white;
+        }
+        .category-btn:not(.active) {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+        }
+        .category-btn:not(.active):hover {
+            background: var(--gray-100);
+        }
+        .numpad-btn {
+            padding: 1rem;
+            border-radius: var(--radius-lg);
+            font-size: 1.25rem;
+            font-weight: 600;
+            transition: all 0.1s;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+        .numpad-btn:active {
+            transform: scale(0.95);
+            background: var(--kt-500);
+            color: white;
+            border-color: var(--kt-500);
+        }
+        .payment-method-btn {
+            padding: 0.75rem;
+            border-radius: var(--radius-lg);
+            border: 2px solid var(--border-color);
+            background: var(--bg-card);
+            transition: all var(--transition-fast);
+            cursor: pointer;
+            text-align: center;
+        }
+        .payment-method-btn.active {
+            border-color: var(--kt-500);
+            background: var(--kt-50);
+        }
+        .payment-method-btn:hover:not(.active) {
+            border-color: var(--gray-300);
+        }
+        .sidebar-link {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.625rem 0.875rem;
+            border-radius: var(--radius-lg);
+            font-size: 0.875rem; font-weight: 500;
+            color: var(--text-secondary);
+            transition: all var(--transition-fast);
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .sidebar-link:hover {
+            background: rgba(255,255,255,0.05);
+            color: #f9fafb;
+        }
+        .sidebar-link.active {
+            background: linear-gradient(135deg, var(--kt-700) 0%, var(--kt-800) 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+        }
+        .quantity-btn {
+            width: 28px; height: 28px;
+            border-radius: var(--radius-md);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.1s;
+            border: none;
+        }
+        .quantity-btn.minus {
+            background: #fee2e2; color: #ef4444;
+        }
+        .quantity-btn.minus:hover { background: #fecaca; }
+        .quantity-btn.plus {
+            background: #dcfce7; color: #16a34a;
+        }
+        .quantity-btn.plus:hover { background: #bbf7d0; }
+    </style>
+</head>
+<body class="bg-[var(--bg-primary)] text-[var(--text-primary)] min-h-screen">
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
+
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="fixed lg:sticky top-0 left-0 z-50 w-64 h-screen bg-[var(--bg-sidebar)] text-gray-300 flex flex-col -translate-x-full lg:translate-x-0 transition-transform duration-300">
+            <div class="p-5 border-b border-white/5">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-kopitiam-500 to-kopitiam-700 flex items-center justify-center shadow-lg shadow-green-500/20">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-white font-bold text-sm leading-tight">KopiTiam POS</h1>
+                        <p class="text-xs text-gray-500">Cashier Terminal</p>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+                <div class="px-3 mb-2">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-gray-500">Operations</span>
+                </div>
+                <a href="./cashier.html" class="sidebar-link active">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                    Cashier
+                </a>
+                <a href="./kitchen.html" class="sidebar-link">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                    Kitchen Display
+                </a>
+                <a href="./analytics.html" class="sidebar-link">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    Analytics
+                </a>
+            </nav>
+
+            <div class="p-3 border-t border-white/5 space-y-1">
+                <button id="btn-dark-mode" class="sidebar-link w-full">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                    Dark Mode
+                </button>
+                <button id="btn-logout" class="sidebar-link w-full text-red-400 hover:text-red-300 hover:bg-red-500/10">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                    Logout
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 min-w-0 flex flex-col md:flex-row h-screen overflow-y-auto md:overflow-hidden">
+            <!-- Menu Section -->
+            <div class="flex-1 p-4 lg:p-6 overflow-y-auto">
+                <header class="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-[var(--text-primary)] flex items-center gap-2">
+                            <span class="text-2xl">☕</span> Cashier
+                        </h2>
+                        <p class="text-sm text-[var(--text-secondary)]">Select items to add to order</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button onclick="openBestSellersModal()" class="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold text-sm rounded-xl hover:shadow-lg transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer shadow-md">
+                            🔥 Best Sellers
+                        </button>
+                        <div class="hidden md:flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-kopitiam-500 to-kopitiam-700 flex items-center justify-center text-white text-xs font-bold">
+                                <span id="user-initial">C</span>
+                            </div>
+                            <div>
+                                <p id="user-name" class="text-sm font-semibold text-[var(--text-primary)] leading-tight">Cashier</p>
+                                <p id="user-role" class="text-xs text-[var(--text-secondary)]">Cashier</p>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- Search & Categories -->
+                <div class="mb-4">
+                    <div class="relative mb-4">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                        </div>
+                        <input type="text" id="menu-search" placeholder="Search menu items..."
+                            class="w-full pl-10 pr-4 py-3 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-gray-400 text-sm outline-none focus:border-kopitiam-500 focus:ring-2 focus:ring-kopitiam-500/20 transition-all">
+                    </div>
+                    <div id="category-list" class="flex gap-2 overflow-x-auto pb-2">
+                        <button class="category-btn active" data-category="all">All</button>
+                        <button class="category-btn" data-category="coffee">☕ Coffee</button>
+                        <button class="category-btn" data-category="tea">🍵 Tea</button>
+                        <button class="category-btn" data-category="food">🥐 Food</button>
+                        <button class="category-btn" data-category="dessert">🍰 Dessert</button>
+                    </div>
+                </div>
+
+                <!-- Menu Grid -->
+                <div id="menu-grid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                    <!-- Menu items loaded via JS -->
+                    <div class="col-span-full py-12 text-center">
+                        <div class="kt-spinner mx-auto mb-3"></div>
+                        <p class="text-sm text-[var(--text-secondary)]">Loading menu...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Panel -->
+            <div class="w-full md:w-80 lg:w-96 bg-[var(--bg-card)] border-t md:border-t-0 md:border-l border-[var(--border-color)] flex flex-col h-[500px] md:h-screen shrink-0">
+                <div class="p-4 border-b border-[var(--border-color)]">
+                    <h3 class="font-bold text-[var(--text-primary)] flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                        Current Order
+                    </h3>
+                </div>
+
+                <div id="order-items" class="flex-1 overflow-y-auto p-4">
+                    <div id="empty-order" class="text-center py-8 text-[var(--text-secondary)]">
+                        <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+                        </svg>
+                        <p class="text-sm font-medium">No items added yet</p>
+                        <p class="text-xs mt-1">Click menu items to add</p>
+                    </div>
+                </div>
+
+                <!-- Order Summary -->
+                <div class="p-4 border-t border-[var(--border-color)] space-y-2">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-[var(--text-secondary)]">Subtotal</span>
+                        <span id="subtotal" class="font-semibold text-[var(--text-primary)]">Rp 0</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-[var(--text-secondary)]">Tax (10%)</span>
+                        <span id="tax" class="font-semibold text-[var(--text-primary)]">Rp 0</span>
+                    </div>
+                    <div class="flex justify-between text-lg font-bold pt-2 border-t border-[var(--border-color)]">
+                        <span class="text-[var(--text-primary)]">Total</span>
+                        <span id="total" class="text-kopitiam-600">Rp 0</span>
+                    </div>
+                </div>
+
+                <!-- Payment Methods -->
+                <div class="px-4 pb-2">
+                    <p class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">Payment</p>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button class="payment-method-btn active" data-payment="cash">
+                            <svg class="w-5 h-5 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            <span class="text-xs font-medium">Cash</span>
+                        </button>
+                        <button class="payment-method-btn" data-payment="qris">
+                            <svg class="w-5 h-5 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zM8 12h2v4H8v-4zm8-4h2v4h-2V8zM4 8h2v4H4V8zm16 8v-4h-2v4h2zM4 16v-4H2v4h2z"/></svg>
+                            <span class="text-xs font-medium">QRIS</span>
+                        </button>
+                        <button class="payment-method-btn" data-payment="card">
+                            <svg class="w-5 h-5 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                            <span class="text-xs font-medium">Online/Midtrans</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="p-4 space-y-2">
+                    <button id="btn-charge" class="kt-btn kt-btn-primary w-full py-3.5 rounded-xl text-sm font-semibold">
+                        <span id="charge-text">Charge Rp 0</span>
+                    </button>
+                    <button id="btn-clear" class="kt-btn kt-btn-secondary w-full py-2.5 rounded-xl text-sm">
+                        Clear Order
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="payment-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div class="bg-[var(--bg-card)] rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 kt-fade-in">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold text-[var(--text-primary)]">Payment Successful!</h3>
+                <p class="text-sm text-[var(--text-secondary)] mt-1">Order has been processed</p>
+            </div>
+            <div class="bg-[var(--bg-secondary)] rounded-xl p-4 mb-6 space-y-2">
+                <div class="flex justify-between text-sm">
+                    <span class="text-[var(--text-secondary)]">Order ID</span>
+                    <span id="receipt-order-id" class="font-mono font-semibold">#0001</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-[var(--text-secondary)]">Payment</span>
+                    <span id="receipt-payment" class="font-semibold">Cash</span>
+                </div>
+                <div class="flex justify-between text-lg font-bold pt-2 border-t border-[var(--border-color)]">
+                    <span>Total</span>
+                    <span id="receipt-total">Rp 0</span>
+                </div>
+            </div>
+            <button id="btn-new-order" class="kt-btn kt-btn-primary w-full py-3 rounded-xl">
+                New Order
+            </button>
+        </div>
+    </div>
+
+    <!-- Best Sellers Modal -->
+    <div id="modal-best-sellers" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 hidden transition-opacity duration-300">
+        <div class="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl w-full max-w-md p-6 shadow-2xl relative kt-scale-up">
+            <button onclick="closeBestSellersModal()" class="absolute top-4 right-4 text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+            <div class="flex items-center gap-3 mb-6">
+                <span class="text-3xl">🔥</span>
+                <div>
+                    <h3 class="text-lg font-bold text-[var(--text-primary)]">Trending Best Sellers</h3>
+                    <p class="text-xs text-[var(--text-secondary)]">The most popular items calculated from transactions</p>
+                </div>
+            </div>
+            <div class="space-y-3 max-h-[320px] overflow-y-auto pr-1" id="best-sellers-list-container">
+                <div class="text-center py-8 text-xs text-[var(--text-muted)]">
+                    <div class="kt-spinner mx-auto mb-2"></div>
+                    Loading best sellers data...
+                </div>
+            </div>
+            <div class="mt-6 pt-4 border-t border-[var(--border-color)] flex justify-end">
+                <button onclick="closeBestSellersModal()" class="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] font-semibold text-sm rounded-xl cursor-pointer hover:bg-[var(--bg-primary)]">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./midtrans-loader.js"></script>
+    <script src="./cashier.js"></script>
+</body>
+</html>

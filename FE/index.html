@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KopiTiam POS — Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        kopitiam: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            300: '#86efac',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(12px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .tab-active {
+            background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+            color: white;
+            box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
+        }
+
+        .tab-inactive {
+            background: transparent;
+            color: #6b7280;
+        }
+
+        .tab-inactive:hover {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .input-focus:focus {
+            box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+            border-color: #16a34a;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(22, 163, 74, 0.4);
+        }
+
+        .btn-primary:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .numpad-btn {
+            transition: all 0.15s ease;
+        }
+
+        .numpad-btn:active {
+            transform: scale(0.92);
+            background: #16a34a;
+            color: white;
+        }
+
+        .pin-dot {
+            transition: all 0.2s ease;
+        }
+
+        .pin-dot.filled {
+            background: #16a34a;
+            border-color: #16a34a;
+            transform: scale(1.1);
+        }
+
+        .shake {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            20% {
+                transform: translateX(-6px);
+            }
+
+            40% {
+                transform: translateX(6px);
+            }
+
+            60% {
+                transform: translateX(-4px);
+            }
+
+            80% {
+                transform: translateX(4px);
+            }
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .success-pulse {
+            animation: successPulse 0.6s ease-out;
+        }
+
+        @keyframes successPulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.02);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+    </style>
+    <base target="_blank">
+</head>
+
+<body
+    class="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/30 to-emerald-50/20 flex items-center justify-center p-4">
+
+    <!-- Decorative background elements -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute -top-40 -right-40 w-96 h-96 bg-green-200/20 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-40 -left-40 w-96 h-96 bg-emerald-200/20 rounded-full blur-3xl"></div>
+        <div
+            class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-green-100/10 rounded-full blur-3xl">
+        </div>
+    </div>
+
+    <!-- Main Card -->
+    <div class="relative w-full max-w-md">
+        <!-- Logo & Header -->
+        <div class="text-center mb-8 fade-in">
+            <div
+                class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-kopitiam-500 to-kopitiam-700 shadow-lg shadow-green-500/25 mb-4">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" />
+                </svg>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 tracking-tight">KopiTiam POS</h1>
+            <p class="text-sm text-gray-500 mt-1">Sistem Point of Sale untuk Coffee Shop</p>
+        </div>
+
+        <!-- Login Card -->
+        <div id="login-card" class="glass-card rounded-3xl shadow-2xl shadow-gray-200/50 overflow-hidden fade-in"
+            style="animation-delay: 0.1s">
+            <!-- Tab Navigation -->
+            <div class="flex p-2 bg-gray-50/80 border-b border-gray-100">
+                <button id="tab-manager" onclick="switchTab('manager')"
+                    class="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-200 tab-active">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    Manager
+                </button>
+                <button id="tab-staff" onclick="switchTab('staff')"
+                    class="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-200 tab-inactive">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    Staff
+                </button>
+            </div>
+
+            <!-- Error Message Container -->
+            <div id="error-message" class="hidden px-6 pt-4">
+                <div class="flex items-start gap-3 p-3 rounded-xl bg-red-50 border border-red-100">
+                    <svg class="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p id="error-text" class="text-sm text-red-700 font-medium"></p>
+                </div>
+            </div>
+
+            <!-- Success Message Container -->
+            <div id="success-message" class="hidden px-6 pt-4">
+                <div class="flex items-start gap-3 p-3 rounded-xl bg-green-50 border border-green-100">
+                    <svg class="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                        <p id="success-text" class="text-sm text-green-700 font-medium"></p>
+                        <p id="success-subtext" class="text-xs text-green-600 mt-1"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manager Login Form -->
+            <div id="form-manager" class="p-6 slide-in">
+                <form onsubmit="handleManagerLogin(event)">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1.5">Email</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                                    </svg>
+                                </div>
+                                <input type="email" id="manager-email" placeholder="manager@kopitiam.id"
+                                    class="input-focus w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 text-sm font-medium outline-none transition-all"
+                                    required autocomplete="email">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1.5">Password</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                </div>
+                                <input type="password" id="manager-password" placeholder="••••••••"
+                                    class="input-focus w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 text-sm font-medium outline-none transition-all"
+                                    required autocomplete="current-password">
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" id="manager-submit"
+                        class="btn-primary w-full mt-6 py-3.5 px-4 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2">
+                        <span id="manager-btn-text">Masuk sebagai Manager</span>
+                        <svg id="manager-btn-icon" class="w-4 h-4" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Staff Login Form (PIN) -->
+            <div id="form-staff" class="hidden p-6">
+                <div class="text-center mb-6">
+                    <p class="text-sm text-gray-500 mb-4">Masukkan 6-digit PIN Anda</p>
+
+                    <!-- PIN Display Dots -->
+                    <div class="flex justify-center gap-3 mb-2">
+                        <div class="pin-dot w-4 h-4 rounded-full border-2 border-gray-300 bg-transparent"
+                            data-index="0"></div>
+                        <div class="pin-dot w-4 h-4 rounded-full border-2 border-gray-300 bg-transparent"
+                            data-index="1"></div>
+                        <div class="pin-dot w-4 h-4 rounded-full border-2 border-gray-300 bg-transparent"
+                            data-index="2"></div>
+                        <div class="pin-dot w-4 h-4 rounded-full border-2 border-gray-300 bg-transparent"
+                            data-index="3"></div>
+                        <div class="pin-dot w-4 h-4 rounded-full border-2 border-gray-300 bg-transparent"
+                            data-index="4"></div>
+                        <div class="pin-dot w-4 h-4 rounded-full border-2 border-gray-300 bg-transparent"
+                            data-index="5"></div>
+                    </div>
+
+                    <!-- Hidden PIN Input -->
+                    <input type="password" id="staff-pin" maxlength="6" class="sr-only" inputmode="numeric"
+                        pattern="[0-9]*">
+                </div>
+
+                <!-- Numpad -->
+                <div class="grid grid-cols-3 gap-2.5 mb-4">
+                    <button onclick="appendPin('1')"
+                        class="numpad-btn py-4 rounded-xl bg-gray-50 border border-gray-200 text-gray-800 font-semibold text-lg hover:bg-gray-100">1</button>
+                    <button onclick="appendPin('2')"
+                        class="numpad-btn py-4 rounded-xl bg-gray-50 border border-gray-200 text-gray-800 font-semibold text-lg hover:bg-gray-100">2</button>
+                    <button onclick="appendPin('3')"
+                        class="numpad-btn py-4 rounded-xl bg-gray-50 border border-gray-200 text-gray-800 font-semibold text-lg hover:bg-gray-100">3</button>
+                    <button onclick="appendPin('4')"
+                        class="numpad-btn py-4 rounded-xl bg-gray-50 border border-gray-200 text-gray-800 font-semibold text-lg hover:bg-gray-100">4</button>
+                    <button onclick="appendPin('5')"
+                        class="numpad-btn py-4 rounded-xl bg-gray-50 border border-gray-200 text-gray-800 font-semibold text-lg hover:bg-gray-100">5</button>
+                    <button onclick="appendPin('6')"
+                        class="numpad-btn py-4 rounded-xl bg-gray-50 border border-gray-200 text-gray-800 font-semibold text-lg hover:bg-gray-100">6</button>
+                    <button onclick="appendPin('7')"
+                        class="numpad-btn py-4 rounded-xl bg-gray-50 border border-gray-200 text-gray-800 font-semibold text-lg hover:bg-gray-100">7</button>
+                    <button onclick="appendPin('8')"
+                        class="numpad-btn py-4 rounded-xl bg-gray-50 border border-gray-200 text-gray-800 font-semibold text-lg hover:bg-gray-100">8</button>
+                    <button onclick="appendPin('9')"
+                        class="numpad-btn py-4 rounded-xl bg-gray-50 border border-gray-200 text-gray-800 font-semibold text-lg hover:bg-gray-100">9</button>
+                    <button onclick="clearPin()"
+                        class="numpad-btn py-4 rounded-xl bg-red-50 border border-red-100 text-red-600 font-semibold text-sm hover:bg-red-100 flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                    <button onclick="appendPin('0')"
+                        class="numpad-btn py-4 rounded-xl bg-gray-50 border border-gray-200 text-gray-800 font-semibold text-lg hover:bg-gray-100">0</button>
+                    <button onclick="backspacePin()"
+                        class="numpad-btn py-4 rounded-xl bg-amber-50 border border-amber-100 text-amber-600 font-semibold text-sm hover:bg-amber-100 flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414 6.414a2 2 0 001.414.586H19a2 2 0 002-2V7a2 2 0 00-2-2h-8.172a2 2 0 00-1.414.586L3 12z" />
+                        </svg>
+                    </button>
+                </div>
+
+                <button onclick="handleStaffLogin()" id="staff-submit"
+                    class="btn-primary w-full py-3.5 px-4 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2">
+                    <span id="staff-btn-text">Masuk sebagai Staff</span>
+                    <svg id="staff-btn-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <p class="text-center text-xs text-gray-400 mt-6 fade-in" style="animation-delay: 0.2s">
+            KopiTiam POS v3.0 • Enterprise Coffee Shop System
+        </p>
+    </div>
+
+    <script>
+        // ==================== CONFIG ====================
+        const API_BASE_URL = 'http://localhost:8080';
+
+        // ==================== STATE ====================
+        let currentTab = 'manager';
+        let pinValue = '';
+
+        // ==================== TAB SWITCHING ====================
+        function switchTab(tab) {
+            currentTab = tab;
+
+            const managerTab = document.getElementById('tab-manager');
+            const staffTab = document.getElementById('tab-staff');
+
+            if (tab === 'manager') {
+                managerTab.className = 'flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-200 tab-active';
+                staffTab.className = 'flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-200 tab-inactive';
+
+                document.getElementById('form-manager').classList.remove('hidden');
+                document.getElementById('form-staff').classList.add('hidden');
+                document.getElementById('manager-email').focus();
+            } else {
+                staffTab.className = 'flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-200 tab-active';
+                managerTab.className = 'flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-200 tab-inactive';
+
+                document.getElementById('form-staff').classList.remove('hidden');
+                document.getElementById('form-staff').classList.add('slide-in');
+                document.getElementById('form-manager').classList.add('hidden');
+                clearPin();
+            }
+
+            hideError();
+            hideSuccess();
+        }
+
+        // ==================== PIN HANDLING ====================
+        function appendPin(digit) {
+            if (pinValue.length < 6) {
+                pinValue += digit;
+                updatePinDisplay();
+
+                if (pinValue.length === 6) {
+                    setTimeout(() => handleStaffLogin(), 200);
+                }
+            }
+        }
+
+        function backspacePin() {
+            pinValue = pinValue.slice(0, -1);
+            updatePinDisplay();
+        }
+
+        function clearPin() {
+            pinValue = '';
+            updatePinDisplay();
+        }
+
+        function updatePinDisplay() {
+            const dots = document.querySelectorAll('.pin-dot');
+            dots.forEach((dot, index) => {
+                if (index < pinValue.length) {
+                    dot.classList.add('filled');
+                } else {
+                    dot.classList.remove('filled');
+                }
+            });
+        }
+
+        // Keyboard support for PIN
+        document.addEventListener('keydown', (e) => {
+            if (currentTab !== 'staff') return;
+
+            if (e.key >= '0' && e.key <= '9') {
+                appendPin(e.key);
+            } else if (e.key === 'Backspace') {
+                backspacePin();
+            } else if (e.key === 'Escape') {
+                clearPin();
+            } else if (e.key === 'Enter' && pinValue.length === 6) {
+                handleStaffLogin();
+            }
+        });
+
+        // ==================== MESSAGE HANDLING ====================
+        function showError(message) {
+            const errorContainer = document.getElementById('error-message');
+            const errorText = document.getElementById('error-text');
+            errorText.textContent = message;
+            errorContainer.classList.remove('hidden');
+            hideSuccess();
+
+            const card = document.getElementById('login-card');
+            card.classList.remove('shake');
+            void card.offsetWidth;
+            card.classList.add('shake');
+        }
+
+        function hideError() {
+            document.getElementById('error-message').classList.add('hidden');
+        }
+
+        function showSuccess(message, subtext) {
+            const successContainer = document.getElementById('success-message');
+            const successText = document.getElementById('success-text');
+            const successSubtext = document.getElementById('success-subtext');
+            successText.textContent = message;
+            successSubtext.textContent = subtext || '';
+            successContainer.classList.remove('hidden');
+            hideError();
+
+            const card = document.getElementById('login-card');
+            card.classList.add('success-pulse');
+            setTimeout(() => card.classList.remove('success-pulse'), 600);
+        }
+
+        function hideSuccess() {
+            document.getElementById('success-message').classList.add('hidden');
+        }
+
+        // ==================== LOADING STATE ====================
+        function setLoading(isLoading, type) {
+            const btnText = document.getElementById(`${type}-btn-text`);
+            const btnIcon = document.getElementById(`${type}-btn-icon`);
+            const btn = document.getElementById(`${type}-submit`);
+
+            if (isLoading) {
+                btn.disabled = true;
+                btnText.textContent = 'Loading...';
+                btnIcon.innerHTML = `
+                    <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                `;
+                btn.classList.add('opacity-75', 'cursor-not-allowed');
+            } else {
+                btn.disabled = false;
+                btnText.textContent = type === 'manager' ? 'Masuk sebagai Manager' : 'Masuk sebagai Staff';
+                btnIcon.innerHTML = `
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                    </svg>
+                `;
+                btn.classList.remove('opacity-75', 'cursor-not-allowed');
+            }
+        }
+
+        // ==================== REDIRECT WITH FALLBACK ====================
+        function safeRedirect(url, fallbackMessage) {
+            // Check if running from file://
+            if (window.location.protocol === 'file:') {
+                showSuccess(
+                    'Login berhasil!',
+                    `${fallbackMessage} File ini dibuka dari disk lokal (file://). Untuk redirect otomatis, serve file via web server (Caddy).`
+                );
+                return;
+            }
+
+            // Try to check if target page exists before redirect
+            fetch(url, { method: 'HEAD', cache: 'no-cache' })
+                .then(response => {
+                    if (response.ok || response.status === 304) {
+                        window.location.href = url;
+                    } else {
+                        showSuccess(
+                            'Login berhasil!',
+                            `${fallbackMessage} Halaman tujuan (${url}) belum tersedia. Status: ${response.status}`
+                        );
+                    }
+                })
+                .catch(() => {
+                    // If HEAD request fails (e.g. CORS), just try redirect anyway
+                    window.location.href = url;
+                });
+        }
+
+        // ==================== MANAGER LOGIN ====================
+        async function handleManagerLogin(event) {
+            event.preventDefault();
+            hideError();
+            hideSuccess();
+
+            const email = document.getElementById('manager-email').value.trim();
+            const password = document.getElementById('manager-password').value;
+
+            if (!email || !password) {
+                showError('Email dan password wajib diisi.');
+                return;
+            }
+
+            setLoading(true, 'manager');
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || data.error || 'Login gagal. Periksa kredensial Anda.');
+                }
+
+                // Store token
+                if (data.data && data.data.access_token) {
+                    localStorage.setItem('kopitiam_token', data.data.access_token);
+                    localStorage.setItem('kopitiam_refresh_token', data.data.refresh_token || '');
+                    localStorage.setItem('kopitiam_user', JSON.stringify(data.data.user || {}));
+                }
+
+                safeRedirect('/analytics.html', 'Redirect ke halaman Analytics...');
+
+            } catch (error) {
+                console.error('Login error:', error);
+                showError(error.message || 'Terjadi kesalahan jaringan. Pastikan backend berjalan di localhost:8080.');
+                setLoading(false, 'manager');
+            }
+        }
+
+        // ==================== STAFF LOGIN (PIN) ====================
+        async function handleStaffLogin() {
+            hideError();
+            hideSuccess();
+
+            if (pinValue.length !== 6) {
+                showError('PIN harus 6 digit.');
+                return;
+            }
+
+            setLoading(true, 'staff');
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v1/auth/login-pin`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ pin: pinValue })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || data.error || 'PIN tidak valid.');
+                }
+
+                // Store token
+                if (data.data && data.data.access_token) {
+                    localStorage.setItem('kopitiam_token', data.data.access_token);
+                    localStorage.setItem('kopitiam_refresh_token', data.data.refresh_token || '');
+                    localStorage.setItem('kopitiam_user', JSON.stringify(data.data.user || {}));
+                }
+
+                // Determine redirect based on role
+                const user = data.data?.user || {};
+                const role = user.role?.toLowerCase() || '';
+
+                if (role === 'cashier') {
+                    safeRedirect('/cashier.html', 'Redirect ke halaman Cashier...');
+                } else if (role === 'kitchen') {
+                    safeRedirect('/kitchen.html', 'Redirect ke halaman Kitchen...');
+                } else {
+                    safeRedirect('/analytics.html', 'Redirect ke halaman Analytics...');
+                }
+
+            } catch (error) {
+                console.error('PIN login error:', error);
+                showError(error.message || 'Terjadi kesalahan jaringan. Pastikan backend berjalan di localhost:8080.');
+                setLoading(false, 'staff');
+                clearPin();
+            }
+        }
+
+        // ==================== INIT ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check if already logged in
+            const token = localStorage.getItem('kopitiam_token');
+            const user = JSON.parse(localStorage.getItem('kopitiam_user') || '{}');
+
+            if (token && user.role) {
+                const role = user.role.toLowerCase();
+                if (role === 'manager') {
+                    safeRedirect('/analytics.html', 'Sudah login sebagai Manager.');
+                } else if (role === 'cashier') {
+                    safeRedirect('/cashier.html', 'Sudah login sebagai Cashier.');
+                } else if (role === 'kitchen') {
+                    safeRedirect('/kitchen.html', 'Sudah login sebagai Kitchen.');
+                }
+            }
+
+            // Focus email input on load
+            document.getElementById('manager-email').focus();
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,75 @@
+# KopiTiam POS — Caddy Reverse Proxy Configuration
+# Serve static frontend files and proxy API requests to Go backend
+
+# Main site (localhost)
+:8090 {
+    # Enable file server for static assets in the current directory
+    root * .
+    
+    # API reverse proxy to Go backend
+    handle /api/* {
+        reverse_proxy localhost:8080
+    }
+
+    # Catalog reverse proxy to Go backend (enforcing basic auth)
+    handle /catalog/* {
+        reverse_proxy localhost:8080
+    }
+
+    # SPA Routing: Serve static files, redirect 404s to index.html
+    handle {
+        try_files {path} /index.html
+        file_server
+    }
+
+    # Health check endpoint
+    handle /health {
+        respond "OK" 200
+    }
+
+    # Enable compression
+    encode gzip zstd
+
+    # Security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+
+    # CORS headers for API
+    @api {
+        path /api/*
+    }
+    header @api {
+        Access-Control-Allow-Origin "*"
+        Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "Authorization, Content-Type, Accept"
+    }
+}
+
+# Local domain (kopitiam.local)
+http://kopitiam.local:8091 {
+    root * .
+    
+    handle /api/* {
+        reverse_proxy localhost:8080
+    }
+
+    handle /catalog/* {
+        reverse_proxy localhost:8080
+    }
+
+    handle {
+        try_files {path} /index.html
+        file_server
+    }
+
+    encode gzip zstd
+
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+    }
+}
